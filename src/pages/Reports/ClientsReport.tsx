@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { 
     Typography, Card, Row, Col, Statistic, Select, Tag, Table, Progress, Input, Space, Button, 
-    Descriptions, Divider, Spin, message, Drawer, Skeleton
+    Descriptions, Divider, Spin, message, Skeleton
 } from 'antd';
 import { 
     TeamOutlined, SolutionOutlined, UserOutlined, SmileOutlined, 
@@ -279,6 +279,17 @@ const ClientDetailView: React.FC<{ client: ClientRecord, onBack: () => void }> =
 
     return (
         <div className="min-h-screen p-6">
+            {/* Back Button */}
+            <Button 
+                icon={<ArrowLeftOutlined />} 
+                onClick={onBack}
+                className="mb-6"
+                type="link"
+                style={{ color: '#ac202d', paddingLeft: 0 }}
+            >
+                Back to Clients Report
+            </Button>
+            
             {/* Header Section */}
             <div>
                 
@@ -464,7 +475,6 @@ const ClientsReport: React.FC = () => {
     const [groups, setGroups] = useState<{ id: number; name: string }[]>([]);
     const [loadingGroups, setLoadingGroups] = useState(false);
     const [loadingClientDetail, setLoadingClientDetail] = useState(false);
-    const [drawerVisible, setDrawerVisible] = useState(false);
 
     // Load groups on mount
     useEffect(() => {
@@ -514,7 +524,6 @@ const ClientsReport: React.FC = () => {
     };
 
     const handleViewClient = async (record: ClientRecord) => {
-        setDrawerVisible(true);
         setLoadingClientDetail(true);
         try {
             // Get client ID from the record
@@ -578,7 +587,6 @@ const ClientsReport: React.FC = () => {
             setSelectedClient(detailedClient);
         } catch (error: any) {
             message.error(error.response?.data?.message || 'Failed to load client details');
-            setDrawerVisible(false);
         } finally {
             setLoadingClientDetail(false);
         }
@@ -674,14 +682,63 @@ const ClientsReport: React.FC = () => {
         },
     ];
 
-    const handleCloseDrawer = () => {
-        setDrawerVisible(false);
+    const handleBack = () => {
         setSelectedClient(null);
     };
 
     // Main Report View
     return (
         <div>
+            {selectedClient ? (
+                loadingClientDetail ? (
+                    <div className="p-6">
+                        {/* Header Skeleton */}
+                        <div className="mb-6">
+                            <Skeleton.Button active size="default" style={{ width: 150 }} className="mb-4" />
+                            <div className="bg-white rounded-2xl shadow-lg p-6 mb-6">
+                                <div className="flex items-center gap-4">
+                                    <Skeleton.Avatar active size={64} />
+                                    <div className="flex-1">
+                                        <Skeleton active paragraph={{ rows: 1 }} />
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Financial Cards Skeleton */}
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+                            {[1, 2, 3].map((i) => (
+                                <div key={i} className="bg-white rounded-xl shadow-md p-6">
+                                    <Skeleton active paragraph={{ rows: 2 }} />
+                                </div>
+                            ))}
+                        </div>
+
+                        {/* Personal Info Skeleton */}
+                        <div className="bg-white rounded-2xl shadow-lg p-6 mb-6">
+                            <Skeleton active paragraph={{ rows: 1 }} className="mb-4" />
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                                {[1, 2, 3, 4, 5, 6].map((i) => (
+                                    <div key={i} className="p-4 bg-gray-50 rounded-lg">
+                                        <Skeleton active paragraph={{ rows: 1 }} />
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+
+                        {/* Tables Skeleton */}
+                        <div className="bg-white rounded-2xl shadow-lg p-6 mb-6">
+                            <Skeleton active paragraph={{ rows: 4 }} />
+                        </div>
+                        <div className="bg-white rounded-2xl shadow-lg p-6 mb-6">
+                            <Skeleton active paragraph={{ rows: 4 }} />
+                        </div>
+                    </div>
+                ) : (
+                    <ClientDetailView client={selectedClient} onBack={handleBack} />
+                )
+            ) : (
+                <>
             <PageHeader 
                 title="Clients Report" 
                 breadcrumbs={[
@@ -774,64 +831,8 @@ const ClientsReport: React.FC = () => {
                 />
             </Card>
             </div>
-
-            {/* Client Detail Drawer */}
-            <Drawer
-                title={null}
-                placement="right"
-                onClose={handleCloseDrawer}
-                open={drawerVisible}
-                width="80%"
-                styles={{ body: { padding: 0 } }}
-            >
-                {loadingClientDetail ? (
-                    <div className="p-6">
-                        {/* Header Skeleton */}
-                        <div className="mb-6">
-                            <Skeleton.Button active size="default" style={{ width: 150 }} className="mb-4" />
-                            <div className="bg-white rounded-2xl shadow-lg p-6 mb-6">
-                                <div className="flex items-center gap-4">
-                                    <Skeleton.Avatar active size={64} />
-                                    <div className="flex-1">
-                                        <Skeleton active paragraph={{ rows: 1 }} />
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        {/* Financial Cards Skeleton */}
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
-                            {[1, 2, 3].map((i) => (
-                                <div key={i} className="bg-white rounded-xl shadow-md p-6">
-                                    <Skeleton active paragraph={{ rows: 2 }} />
-                                </div>
-                            ))}
-                        </div>
-
-                        {/* Personal Info Skeleton */}
-                        <div className="bg-white rounded-2xl shadow-lg p-6 mb-6">
-                            <Skeleton active paragraph={{ rows: 1 }} className="mb-4" />
-                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                                {[1, 2, 3, 4, 5, 6].map((i) => (
-                                    <div key={i} className="p-4 bg-gray-50 rounded-lg">
-                                        <Skeleton active paragraph={{ rows: 1 }} />
-                                    </div>
-                                ))}
-                            </div>
-                        </div>
-
-                        {/* Tables Skeleton */}
-                        <div className="bg-white rounded-2xl shadow-lg p-6 mb-6">
-                            <Skeleton active paragraph={{ rows: 4 }} />
-                        </div>
-                        <div className="bg-white rounded-2xl shadow-lg p-6 mb-6">
-                            <Skeleton active paragraph={{ rows: 4 }} />
-                        </div>
-                    </div>
-                ) : selectedClient ? (
-                    <ClientDetailView client={selectedClient} onBack={handleCloseDrawer} />
-                ) : null}
-            </Drawer>
+            </>
+            )}
         </div>
     );
 };
