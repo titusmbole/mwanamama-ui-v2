@@ -430,6 +430,20 @@ const Loans: React.FC = () => {
                     )}
                     <p className="text-sm text-gray-600">Interest Amount: <span className="font-medium text-gray-900">{formatCurrency(selectedLoan.interestAmount)}</span></p>
                     <p className="text-sm text-gray-600">Total Amount: <span className="font-medium text-gray-900">{formatCurrency(selectedLoan.principalAmount + selectedLoan.interestAmount)}</span></p>
+                    {(() => {
+                      const totalAmount = selectedLoan.principalAmount + selectedLoan.interestAmount;
+                      const LOAN_TYPE_SWIFT = "Swift below 1k";
+                      const isWeeklyLoan = selectedLoan.type === LOAN_TYPE_SWIFT;
+                      let totalDuration = isWeeklyLoan ? selectedLoan.durationMonths * 4 : selectedLoan.durationMonths;
+                      let effectiveDurationForInstallment = totalDuration;
+                      if (isWeeklyLoan && totalDuration > 1) {
+                        effectiveDurationForInstallment = totalDuration - 1;
+                      }
+                      const loanInstallment = effectiveDurationForInstallment > 0 ? totalAmount / effectiveDurationForInstallment : 0;
+                      return (
+                        <p className="text-sm text-gray-600">Loan Installment: <span className="font-medium text-gray-900">{formatCurrency(loanInstallment)} / {isWeeklyLoan ? 'week' : 'month'}</span></p>
+                      );
+                    })()}
                   </div>
                 </div>
               </div>
@@ -528,7 +542,7 @@ const Loans: React.FC = () => {
               )}
 
               {/* Repayment History */}
-              {selectedLoan.repayments && selectedLoan.repayments.length > 0 && (
+              {selectedLoan.repayments && selectedLoan.repayments.length > 0 ? (
                 <div className="mt-6 bg-gray-50 p-4 rounded-lg">
                   <h2 className="flex items-center text-lg font-semibold text-gray-800 mb-3">
                     <Clock size={18} className="mr-2 text-green-600" />
@@ -546,14 +560,16 @@ const Loans: React.FC = () => {
                         {selectedLoan.repayments.map((repayment) => (
                           <tr key={repayment.id}>
                             <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500">
-                              {new Date(repayment.datePaid).toLocaleString('en-US', {
-                                year: 'numeric',
-                                month: 'short',
-                                day: 'numeric',
-                                hour: 'numeric',
-                                minute: 'numeric',
-                                hour12: true
-                              })}
+                              {repayment.datePaid.includes("T")
+                                ? new Date(repayment.datePaid).toLocaleString('en-US', {
+                                    year: 'numeric',
+                                    month: 'short',
+                                    day: 'numeric',
+                                    hour: 'numeric',
+                                    minute: 'numeric',
+                                    hour12: true
+                                  })
+                                : new Date(repayment.datePaid).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })}
                             </td>
                             <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900">{formatCurrency(repayment.amount)}</td>
                           </tr>
@@ -561,6 +577,14 @@ const Loans: React.FC = () => {
                       </tbody>
                     </table>
                   </div>
+                </div>
+              ) : (
+                <div className="mt-6 bg-gray-50 p-4 rounded-lg">
+                  <h2 className="flex items-center text-lg font-semibold text-gray-800 mb-3">
+                    <Clock size={18} className="mr-2 text-green-600" />
+                    Repayment History
+                  </h2>
+                  <p className="text-sm text-gray-500">No repayment history available</p>
                 </div>
               )}
             </div>

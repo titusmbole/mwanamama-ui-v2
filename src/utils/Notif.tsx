@@ -13,7 +13,7 @@ export const showSuccess = (message: string, description?: string) => {
     notificationApi.success({
       message,
       description,
-      placement: "bottomLeft",
+      placement: "top",
       duration: 4,
       icon: <CheckCircleOutlined style={{ color: '#22c55e', fontSize: '24px' }} />,
       style: {
@@ -30,7 +30,7 @@ export const showError = (message: string, description?: string) => {
     notificationApi.error({
       message,
       description,
-      placement: "bottomLeft",
+      placement: "top",
       duration: 5,
       icon: <CloseCircleOutlined style={{ color: '#ef4444', fontSize: '24px' }} />,
       style: {
@@ -47,7 +47,7 @@ export const showWarning = (message: string, description?: string) => {
     notificationApi.warning({
       message,
       description,
-      placement: "bottomLeft",
+      placement: "top",
       duration: 4,
       icon: <ExclamationCircleOutlined style={{ color: '#f59e0b', fontSize: '24px' }} />,
       style: {
@@ -64,7 +64,7 @@ export const showInfo = (message: string, description?: string) => {
     notificationApi.info({
       message,
       description,
-      placement: "bottomLeft",
+      placement: "top",
       duration: 4,
       icon: <InfoCircleOutlined style={{ color: '#3b82f6', fontSize: '24px' }} />,
       style: {

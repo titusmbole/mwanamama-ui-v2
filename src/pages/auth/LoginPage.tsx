@@ -33,11 +33,6 @@ const LoginPage: React.FC = () => {
       
       setTimeout(() => navigate("/dashboard"), 500);
     } catch (error: any) {
-      api.error({
-        message: "Login Failed",
-        description: error.response?.data?.message || "Invalid credentials. Please try again.",
-        placement: "topRight",
-      });
     } finally {
       setLoading(false);
     }
