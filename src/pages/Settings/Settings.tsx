@@ -75,13 +75,6 @@ const settingsCards: SettingsCard[] = [
         icon: <BellOutlined style={{ fontSize: 24, color: '#eb2f96' }} />,
         category: 'System'
     },
-    {
-        key: 'apiKeys',
-        title: 'API Integrations',
-        description: 'Manage external service connections',
-        icon: <KeyOutlined style={{ fontSize: 24, color: '#2f54eb' }} />,
-        category: 'System'
-    },
     
     // Preferences
     {
@@ -572,7 +565,7 @@ const Settings: React.FC = () => {
                 ]} 
             />
             
-            <div style={{ padding: '24px', backgroundColor: '#f0f2f5', minHeight: '100vh' }}>
+            <div style={{ backgroundColor: '#f0f2f5', minHeight: '100vh' }}>
                 {/* User Info Card */}
                 <Card style={{ marginBottom: 24 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>

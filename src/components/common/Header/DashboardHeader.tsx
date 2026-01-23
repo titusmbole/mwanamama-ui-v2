@@ -34,7 +34,7 @@ const DashboardHeader: React.FC<DashboardHeaderProps> = ({
   const [searchVisible, setSearchVisible] = useState(false);
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
 
-  const { logout } = useAuth();
+  const { logout, user } = useAuth();
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -143,10 +143,12 @@ const DashboardHeader: React.FC<DashboardHeaderProps> = ({
               <Avatar 
                 size={isMobile ? 32 : 40} 
                 icon={<UserOutlined />} 
-                style={{ backgroundColor: "#1890ff" }} 
+                style={{ backgroundColor: "#ff4d4f" }} 
               />
               {!isMobile && (
-                <span style={{ fontWeight: 500, color: "#333" }}>Kenzi Abednego</span>
+                <span style={{ fontWeight: 500, color: "#333" }}>
+                  {user?.email || user?.username || 'User'}
+                </span>
               )}
             </Space>
           </Dropdown>
