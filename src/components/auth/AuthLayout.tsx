@@ -10,8 +10,9 @@ interface AuthLayoutProps {
 const AuthLayout: React.FC<AuthLayoutProps> = ({ children }) => {
   return (
     <div style={{ display: "flex", minHeight: "100vh" }}>
-      {/* Left Container - 70% - Branding */}
+      {/* Left Container - 70% - Branding (Hidden on mobile) */}
       <div 
+        className="auth-branding"
         style={{ 
           flex: "0 0 70%", 
           background: "linear-gradient(135deg, #ac202d 0%, #d42a3a 100%)",
@@ -38,8 +39,9 @@ const AuthLayout: React.FC<AuthLayoutProps> = ({ children }) => {
         </div>
       </div>
 
-      {/* Right Container - 30% - Form */}
+      {/* Right Container - 30% - Form (100% on mobile) */}
       <div 
+        className="auth-form"
         style={{ 
           flex: "0 0 30%", 
           padding: "48px",
@@ -53,6 +55,18 @@ const AuthLayout: React.FC<AuthLayoutProps> = ({ children }) => {
           {children}
         </div>
       </div>
+
+      <style>{`
+        @media (max-width: 768px) {
+          .auth-branding {
+            display: none !important;
+          }
+          .auth-form {
+            flex: 0 0 100% !important;
+            padding: 24px !important;
+          }
+        }
+      `}</style>
     </div>
   );
 };
