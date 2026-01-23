@@ -1,7 +1,7 @@
 // src/App.tsx
 import React, { useEffect } from "react";
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
-import { message } from "antd";
+import { message, ConfigProvider } from "antd";
 import { AuthProvider } from "./context/AuthContext";
 import ProtectedRoute from "./routes/ProtectedRoute";
 import Layout from "../src/components/common/Layout/Layout";
@@ -69,13 +69,22 @@ const App: React.FC = () => {
   }, []);
 
   return (
-    <AuthProvider>
-       <NotificationProvider> 
-      <Router>
-        <Routes>
-          {/* Public / Auth routes */}
-          <Route path="/auth/login" element={<LoginPage />} />
-          <Route path="/auth/forgot-password" element={<ForgotPassword />} />
+    <ConfigProvider
+      theme={{
+        token: {
+          colorPrimary: '#ac202d',
+          colorLink: '#ac202d',
+          colorSuccess: '#ac202d',
+        },
+      }}
+    >
+      <AuthProvider>
+        <NotificationProvider> 
+          <Router>
+            <Routes>
+              {/* Public / Auth routes */}
+              <Route path="/auth/login" element={<LoginPage />} />
+              <Route path="/auth/forgot-password" element={<ForgotPassword />} />
 
           {/* Protected routes wrapped with Layout */}
           <Route
@@ -153,6 +162,7 @@ const App: React.FC = () => {
       </Router>
       </NotificationProvider>
     </AuthProvider>
+    </ConfigProvider>
   );
 };
 

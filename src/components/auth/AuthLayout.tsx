@@ -14,7 +14,7 @@ const AuthLayout: React.FC<AuthLayoutProps> = ({ children }) => {
       <div 
         style={{ 
           flex: "0 0 70%", 
-          background: "linear-gradient(135deg, #195809 0%, #021b04 100%)",
+          background: "linear-gradient(135deg, #ac202d 0%, #d42a3a 100%)",
           display: "flex",
           flexDirection: "column",
           alignItems: "center",
