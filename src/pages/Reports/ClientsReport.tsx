@@ -1,16 +1,18 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { 
     Typography, Card, Row, Col, Statistic, Select, Tag, Table, Progress, Input, Space, Button, 
-    Descriptions, Divider, Popconfirm // Added Descriptions, Divider, Button, Popconfirm
+    Descriptions, Divider, Spin, message
 } from 'antd';
 import { 
     TeamOutlined, SolutionOutlined, UserOutlined, SmileOutlined, 
     DollarCircleOutlined, PushpinOutlined, SearchOutlined, 
     BankOutlined, CrownOutlined, EyeOutlined, ArrowLeftOutlined, 
     MailOutlined, PhoneOutlined, HomeOutlined, HistoryOutlined, SyncOutlined, 
-    CheckCircleOutlined, WarningOutlined, CalendarOutlined // Added icons for detail view
+    CheckCircleOutlined, WarningOutlined, CalendarOutlined, LoadingOutlined
 } from '@ant-design/icons';
 import PageHeader from '../../components/common/Layout/PageHeader';
+import http from '../../services/httpInterceptor';
+import { APIS } from '../../services/APIS';
 
 const { Title, Text } = Typography;
 const { Option } = Select;
@@ -46,25 +48,53 @@ interface TransactionRecord {
 interface ClientRecord {
     clientId: string;
     name: string;
-    branch: string;
-    loanOfficer: string;
-    age: number;
+    phone: string;
+    idNumber: string;
     gender: 'F' | 'M';
+    creditOfficer: string;
+    groupName: string;
+    status: 'Active' | 'Inactive' | 'Suspended';
+    branch: string;
+    age: number;
     activeLoans: number;
     savingsBalance: number;
     onboardDate: string;
     // Detailed fields for single view
     address?: string;
-    phone?: string;
     email?: string;
     latestLoans?: LoanHistory[];
     transactionHistory?: TransactionRecord[];
 }
 
+// API Response Interface
+interface ApiClientRecord {
+    id: number;
+    fullName: string;
+    phone: string;
+    idNumber: string;
+    gender: string;
+    creditOfficerName: string;
+    groupName: string;
+    status: string;
+    branchName: string;
+    clientNumber: string;
+    location: string;
+    dob: string;
+    saving: number;
+    loan: number;
+    kinName?: string;
+    kinId?: string;
+    kinPhone?: string;
+    payment?: {
+        savingDue: number;
+        loanDue: number;
+    };
+}
+
 interface DemographicData {
     category: string;
     label: string;
-    value: number; // count or percentage
+    value: number;
     color: string;
 }
 
@@ -81,8 +111,10 @@ const mockSummary: ClientSummary = {
 // Merged mock data with detail fields
 const mockClientData: ClientRecord[] = [
     { 
-        clientId: 'C1001', name: 'Aisha Hassan', branch: 'Central Market Hub', loanOfficer: 'Esther Kimani', age: 34, gender: 'F', activeLoans: 2, savingsBalance: 12500, onboardDate: '2022-01-15',
-        address: '14 Kijabe Street, Nairobi', phone: '0711 223 344', email: 'aisha.hassan@example.com',
+        clientId: 'C1001', name: 'Aisha Hassan', phone: '0711 223 344', idNumber: '12345678', gender: 'F', 
+        creditOfficer: 'Esther Kimani', groupName: 'Mama Traders Group', status: 'Active', branch: 'Central Market Hub',
+        age: 34, activeLoans: 2, savingsBalance: 12500, onboardDate: '2022-01-15',
+        address: '14 Kijabe Street, Nairobi', email: 'aisha.hassan@example.com',
         latestLoans: [
             { id: 'L45001', amount: 50000, disbursementDate: '2024-05-10', status: 'Active', purpose: 'Working Capital' },
             { id: 'L38921', amount: 20000, disbursementDate: '2023-08-01', status: 'Closed', purpose: 'Asset Purchase' },
@@ -93,8 +125,10 @@ const mockClientData: ClientRecord[] = [
         ]
     },
     { 
-        clientId: 'C1002', name: 'Ben Mwangi', branch: 'East Side Business', loanOfficer: 'David Mwangi', age: 51, gender: 'M', activeLoans: 1, savingsBalance: 8000, onboardDate: '2020-05-20',
-        address: 'Runda Drive, Block B, Kisumu', phone: '0700 112 233', email: 'ben.mwa@example.com',
+        clientId: 'C1002', name: 'Ben Mwangi', phone: '0700 112 233', idNumber: '23456789', gender: 'M',
+        creditOfficer: 'David Mwangi', groupName: 'Business Achievers', status: 'Active', branch: 'East Side Business',
+        age: 51, activeLoans: 1, savingsBalance: 8000, onboardDate: '2020-05-20',
+        address: 'Runda Drive, Block B, Kisumu', email: 'ben.mwa@example.com',
         latestLoans: [
             { id: 'L50005', amount: 150000, disbursementDate: '2025-01-20', status: 'Active', purpose: 'Business Expansion' },
         ],
@@ -103,9 +137,42 @@ const mockClientData: ClientRecord[] = [
             { date: '2025-11-10', type: 'Repayment', amount: 10000, description: 'Loan L50005 installment' },
         ]
     },
-    { clientId: 'C1003', name: 'Chari Ndungu', branch: 'West Field Outreach', loanOfficer: 'Fatima Aden', age: 28, gender: 'M', activeLoans: 3, savingsBalance: 25000, onboardDate: '2023-11-01', address: '45 River Road, Eldoret', phone: '0722 334 455', email: 'chari@example.com', latestLoans: [], transactionHistory: [] },
-    { clientId: 'C1004', name: 'Doreen Chebet', branch: 'Central Market Hub', loanOfficer: 'Esther Kimani', age: 42, gender: 'F', activeLoans: 1, savingsBalance: 1500, onboardDate: '2021-08-10', address: 'P.O Box 10, Nakuru', phone: '0733 445 566', email: 'doreen@example.com', latestLoans: [], transactionHistory: [] },
-    { clientId: 'C1005', name: 'Elias Juma', branch: 'East Side Business', loanOfficer: 'Ben Carter', age: 31, gender: 'M', activeLoans: 0, savingsBalance: 45000, onboardDate: '2024-03-05', address: 'Mombasa Road, Kilifi', phone: '0744 556 677', email: 'elias@example.com', latestLoans: [], transactionHistory: [] },
+    { 
+        clientId: 'C1003', name: 'Chari Ndungu', phone: '0722 334 455', idNumber: '34567890', gender: 'M',
+        creditOfficer: 'Fatima Aden', groupName: 'Youth Entrepreneurs', status: 'Active', branch: 'West Field Outreach',
+        age: 28, activeLoans: 3, savingsBalance: 25000, onboardDate: '2023-11-01', 
+        address: '45 River Road, Eldoret', email: 'chari@example.com', latestLoans: [], transactionHistory: [] 
+    },
+    { 
+        clientId: 'C1004', name: 'Doreen Chebet', phone: '0733 445 566', idNumber: '45678901', gender: 'F',
+        creditOfficer: 'Esther Kimani', groupName: 'Mama Traders Group', status: 'Active', branch: 'Central Market Hub',
+        age: 42, activeLoans: 1, savingsBalance: 1500, onboardDate: '2021-08-10', 
+        address: 'P.O Box 10, Nakuru', email: 'doreen@example.com', latestLoans: [], transactionHistory: [] 
+    },
+    { 
+        clientId: 'C1005', name: 'Elias Juma', phone: '0744 556 677', idNumber: '56789012', gender: 'M',
+        creditOfficer: 'Ben Carter', groupName: 'Business Achievers', status: 'Inactive', branch: 'East Side Business',
+        age: 31, activeLoans: 0, savingsBalance: 45000, onboardDate: '2024-03-05', 
+        address: 'Mombasa Road, Kilifi', email: 'elias@example.com', latestLoans: [], transactionHistory: [] 
+    },
+    { 
+        clientId: 'C1006', name: 'Faith Wambui', phone: '0755 667 788', idNumber: '67890123', gender: 'F',
+        creditOfficer: 'John Kamau', groupName: 'Women Empowerment', status: 'Active', branch: 'Nairobi West',
+        age: 39, activeLoans: 2, savingsBalance: 18000, onboardDate: '2021-03-12', 
+        address: 'Langata Road, Nairobi', email: 'faith.w@example.com', latestLoans: [], transactionHistory: [] 
+    },
+    { 
+        clientId: 'C1007', name: 'Grace Muthoni', phone: '0766 778 899', idNumber: '78901234', gender: 'F',
+        creditOfficer: 'Sarah Njeri', groupName: 'Mama Traders Group', status: 'Active', branch: 'Central Market Hub',
+        age: 45, activeLoans: 1, savingsBalance: 9500, onboardDate: '2020-07-22', 
+        address: 'Thika Road, Ruiru', email: 'grace.m@example.com', latestLoans: [], transactionHistory: [] 
+    },
+    { 
+        clientId: 'C1008', name: 'Henry Ochieng', phone: '0777 889 900', idNumber: '89012345', gender: 'M',
+        creditOfficer: 'David Mwangi', groupName: 'Business Achievers', status: 'Suspended', branch: 'East Side Business',
+        age: 52, activeLoans: 0, savingsBalance: 2000, onboardDate: '2019-11-30', 
+        address: 'Kisumu Town, Central', email: 'henry.o@example.com', latestLoans: [], transactionHistory: [] 
+    },
 ];
 
 const mockGenderData: DemographicData[] = [
@@ -245,7 +312,14 @@ const ClientDetailView: React.FC<{ client: ClientRecord, onBack: () => void }> =
                             <Descriptions.Item label="Age">{client.age}</Descriptions.Item>
                             <Descriptions.Item label="Gender">{client.gender === 'F' ? 'Female' : 'Male'}</Descriptions.Item>
                             <Descriptions.Item label="Branch">{client.branch}</Descriptions.Item>
-                            <Descriptions.Item label="Loan Officer">{client.loanOfficer}</Descriptions.Item>
+                            <Descriptions.Item label="Credit Officer">{client.creditOfficer}</Descriptions.Item>
+                            <Descriptions.Item label="Group">{client.groupName}</Descriptions.Item>
+                            <Descriptions.Item label="ID Number">{client.idNumber}</Descriptions.Item>
+                            <Descriptions.Item label="Status">
+                                <Tag color={client.status === 'Active' ? 'green' : client.status === 'Inactive' ? 'default' : 'red'}>
+                                    {client.status}
+                                </Tag>
+                            </Descriptions.Item>
                             <Descriptions.Item label="Phone"><PhoneOutlined /> {client.phone || 'N/A'}</Descriptions.Item>
                             <Descriptions.Item label="Email"><MailOutlined /> {client.email || 'N/A'}</Descriptions.Item>
                             <Descriptions.Item label="Address" span={3}><HomeOutlined /> {client.address || 'N/A'}</Descriptions.Item>
@@ -285,8 +359,54 @@ const ClientDetailView: React.FC<{ client: ClientRecord, onBack: () => void }> =
 
 const ClientsReport: React.FC = () => {
     const [searchText, setSearchText] = useState('');
-    // State to hold the currently selected client for the detail view
-    const [selectedClient, setSelectedClient] = useState<ClientRecord | null>(null); 
+    const [selectedGroup, setSelectedGroup] = useState<string>('all');
+    const [selectedClient, setSelectedClient] = useState<ClientRecord | null>(null);
+    const [clientData, setClientData] = useState<ClientRecord[]>([]);
+    const [loading, setLoading] = useState(false);
+
+    // Fetch clients data from API
+    useEffect(() => {
+        const fetchClients = async () => {
+            setLoading(true);
+            try {
+                const response = await http.get(APIS.CLIENTS_REPORT);
+                // API returns paginated data with content array
+                const apiClients: ApiClientRecord[] = response.data.content || [];
+                
+                // Transform API data to match ClientRecord interface
+                const transformedClients: ClientRecord[] = apiClients.map((client: ApiClientRecord) => ({
+                    clientId: client.clientNumber,
+                    name: client.fullName,
+                    phone: client.phone,
+                    idNumber: client.idNumber,
+                    gender: client.gender === 'MALE' ? 'M' : 'F',
+                    creditOfficer: client.creditOfficerName,
+                    groupName: client.groupName,
+                    status: client.status as 'Active' | 'Inactive' | 'Suspended',
+                    branch: client.branchName,
+                    age: client.dob ? new Date().getFullYear() - new Date(client.dob).getFullYear() : 0,
+                    activeLoans: client.loan > 0 ? 1 : 0,
+                    savingsBalance: client.saving,
+                    onboardDate: client.dob || '',
+                }));
+                
+                setClientData(transformedClients);
+            } catch (error: any) {
+                message.error('Failed to load clients data');
+                console.error('Error fetching clients:', error);
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        fetchClients();
+    }, []);
+
+    // Get unique groups for filter
+    const uniqueGroups = useMemo(() => {
+        const groups = Array.from(new Set(clientData.map(client => client.groupName)));
+        return groups.sort();
+    }, [clientData]);
 
     const handleViewClient = (record: ClientRecord) => {
         // Find the full detailed record (in a real app, this would be an API call)
@@ -310,48 +430,53 @@ const ClientsReport: React.FC = () => {
             title: 'Name',
             dataIndex: 'name',
             key: 'name',
-            render: (text: string) => <Tag icon={<UserOutlined />}>{text}</Tag>,
+            render: (text: string) => <Tag icon={<UserOutlined />} color="blue">{text}</Tag>,
             sorter: (a: ClientRecord, b: ClientRecord) => a.name.localeCompare(b.name),
+        },
+        {
+            title: 'Phone Number',
+            dataIndex: 'phone',
+            key: 'phone',
+        },
+        {
+            title: 'ID Number',
+            dataIndex: 'idNumber',
+            key: 'idNumber',
         },
         {
             title: 'Gender',
             dataIndex: 'gender',
             key: 'gender',
             render: (gender: string) => (
-                <Tag color={gender === 'F' ? 'volcano' : 'blue'}>
-                    {gender}
+                <Tag color={gender === 'F' ? 'volcano' : 'geekblue'}>
+                    {gender === 'F' ? 'Female' : 'Male'}
                 </Tag>
             ),
         },
         {
-            title: 'Age',
-            dataIndex: 'age',
-            key: 'age',
-            sorter: (a: ClientRecord, b: ClientRecord) => a.age - b.age,
+            title: 'Credit Officer',
+            dataIndex: 'creditOfficer',
+            key: 'creditOfficer',
         },
         {
-            title: 'Active Loans',
-            dataIndex: 'activeLoans',
-            key: 'activeLoans',
-            render: (count: number) => <Tag color={count > 0 ? 'green' : 'default'}>{count}</Tag>,
-            sorter: (a: ClientRecord, b: ClientRecord) => a.activeLoans - b.activeLoans,
+            title: 'Group Name',
+            dataIndex: 'groupName',
+            key: 'groupName',
+            render: (text: string) => <Tag color="green">{text}</Tag>,
         },
         {
-            title: 'Savings Balance',
-            dataIndex: 'savingsBalance',
-            key: 'savingsBalance',
-            render: (balance: number) => formatCurrency(balance),
-            sorter: (a: ClientRecord, b: ClientRecord) => a.savingsBalance - b.savingsBalance,
+            title: 'Status',
+            dataIndex: 'status',
+            key: 'status',
+            render: (status: string) => {
+                const color = status === 'Active' ? 'green' : status === 'Inactive' ? 'default' : 'red';
+                return <Tag color={color}>{status}</Tag>;
+            },
         },
         {
             title: 'Branch',
             dataIndex: 'branch',
             key: 'branch',
-        },
-        {
-            title: 'Officer',
-            dataIndex: 'loanOfficer',
-            key: 'loanOfficer',
         },
         // ACTION COLUMN - Now correctly triggers state change
         {
@@ -364,21 +489,34 @@ const ClientsReport: React.FC = () => {
                     icon={<EyeOutlined />}
                     className="p-0"
                 >
-                    View
+                    View Details
                 </Button>
             ),
         },
     ];
 
     const filteredClientData = useMemo(() => {
-        if (!searchText) return mockClientData;
-        const lowerCaseSearch = searchText.toLowerCase();
-        return mockClientData.filter(client =>
-            client.name.toLowerCase().includes(lowerCaseSearch) ||
-            client.clientId.toLowerCase().includes(lowerCaseSearch) ||
-            client.loanOfficer.toLowerCase().includes(lowerCaseSearch)
-        );
-    }, [searchText]);
+        let filtered = clientData;
+        
+        // Filter by group
+        if (selectedGroup !== 'all') {
+            filtered = filtered.filter(client => client.groupName === selectedGroup);
+        }
+        
+        // Filter by search text
+        if (searchText) {
+            const lowerCaseSearch = searchText.toLowerCase();
+            filtered = filtered.filter(client =>
+                client.name.toLowerCase().includes(lowerCaseSearch) ||
+                client.clientId.toLowerCase().includes(lowerCaseSearch) ||
+                client.phone.toLowerCase().includes(lowerCaseSearch) ||
+                client.idNumber.toLowerCase().includes(lowerCaseSearch) ||
+                client.creditOfficer.toLowerCase().includes(lowerCaseSearch)
+            );
+        }
+        
+        return filtered;
+    }, [searchText, selectedGroup, clientData]);
     
     // Conditionally render the detailed view or the main report
     if (selectedClient) {
@@ -395,16 +533,9 @@ const ClientsReport: React.FC = () => {
                 ]} 
             />
             
-            <div className="page-container p-4 min-h-screen bg-gray-50">
-                <Title level={2} className="text-gray-800">
-                    📋 Client Report <SolutionOutlined style={{ color: '#52c41a' }} />
-                </Title>
-                <Text type="secondary">
-                    Manage and view data for **client demographics** and account summaries, providing a comprehensive view of the customer base.
-                </Text>
+            <div className="page-container min-h-screen">
 
-            {/* Row 1: Key Metrics (Aligned perfectly) */}
-            <Row gutter={[16, 16]} className="mt-4" align="stretch">
+            <Row gutter={[16, 16]} className='mb-4' align="stretch">
                 {/* Metric Card 1: Total Clients */}
                 <Col xs={24} sm={12} lg={6}>
                 <Card hoverable className="shadow-md h-full border-t-4 border-blue-500">
@@ -457,53 +588,50 @@ const ClientsReport: React.FC = () => {
                 </Card>
                 </Col>
             </Row>
-
-            {/* Row 2: Demographic Breakdown (Gender and Age) */}
-            <Row gutter={[16, 16]} className="mt-4" align="stretch">
-                {/* Gender Breakdown */}
-                <Col xs={24} lg={12}>
-                    <DemographicBreakdown 
-                        title="Gender Distribution" 
-                        data={mockGenderData} 
-                        icon={<TeamOutlined style={{ color: '#ff7875' }} />}
-                    />
-                </Col>
-                
-                {/* Age Breakdown */}
-                <Col xs={24} lg={12}>
-                    <DemographicBreakdown 
-                        title="Age Group Analysis" 
-                        data={mockAgeData} 
-                        icon={<CrownOutlined style={{ color: '#faad14' }} />}
-                    />
-                </Col>
-            </Row>
-
-            {/* Row 3: Detailed Client Table */}
-            <Card title={<Title level={4} className="mb-0"><PushpinOutlined /> Detailed Client Register</Title>} className="mt-4 shadow-lg border-t-4 border-gray-400">
+            
+            <Card title={<Title level={4} className="mb-0"><PushpinOutlined /> Clients Folder</Title>} className="mt-4 shadow-lg border-t-4 border-gray-400">
                 <Space direction="vertical" className="w-full">
-                    <Input
-                        placeholder="Search by Name, ID, or Officer..."
-                        prefix={<SearchOutlined />}
-                        allowClear
-                        value={searchText}
-                        onChange={e => setSearchText(e.target.value)}
-                        className="max-w-md"
-                        size="large"
-                    />
+                    <Row gutter={16}>
+                        <Col xs={24} md={12}>
+                            <Input
+                                placeholder="Search by Name, ID, Phone, ID Number, or Officer..."
+                                prefix={<SearchOutlined />}
+                                allowClear
+                                value={searchText}
+                                onChange={e => setSearchText(e.target.value)}
+                                size="large"
+                            />
+                        </Col>
+                        <Col xs={24} md={12}>
+                            <Select
+                                placeholder="Filter by Group"
+                                value={selectedGroup}
+                                onChange={(value) => setSelectedGroup(value)}
+                                size="large"
+                                style={{ width: '100%' }}
+                            >
+                                <Option value="all">All Groups</Option>
+                                {uniqueGroups.map(group => (
+                                    <Option key={group} value={group}>{group}</Option>
+                                ))}
+                            </Select>
+                        </Col>
+                    </Row>
                     <Text type="secondary" className="block mb-2">
-                        Displaying {filteredClientData.length} of {mockClientData.length} total clients.
+                        Displaying {filteredClientData.length} of {clientData.length} total clients.
                     </Text>
                 </Space>
                 
-                <Table 
-                    columns={clientColumns} 
-                    dataSource={filteredClientData}
-                    rowKey="clientId"
-                    pagination={{ pageSize: 10 }}
-                    size="small"
-                    className="mt-4"
-                />
+                <Spin spinning={loading} tip="Loading clients..." indicator={<LoadingOutlined spin />}>
+                    <Table 
+                        columns={clientColumns} 
+                        dataSource={filteredClientData}
+                        rowKey="clientId"
+                        pagination={{ pageSize: 10 }}
+                        size="small"
+                        className="mt-4"
+                    />
+                </Spin>
             </Card>
             </div>
         </div>
