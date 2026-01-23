@@ -1,7 +1,7 @@
 import axios from 'axios';
 import { jwtDecode } from 'jwt-decode';
 import { BASE_URL } from '../config/api.config';
-import { showError, showSuccess, showWarning } from '../utils/notification';
+import { showError, showSuccess, showWarning } from '../utils/Notif';
 
 // Create an Axios instance
 const http = axios.create({
@@ -51,11 +51,18 @@ http.interceptors.request.use(
 http.interceptors.response.use(
   (response) => {
     // Handle successful responses (2xx status codes)
-    const { data } = response;
+    const { data, status } = response;
     
-    // Check if API sends success messages to display
-    if (data?.message && response.config.method !== 'get') {
-      showSuccess(data.message);
+    // Auto-display success messages for POST, PUT, PATCH, DELETE operations
+    if (data?.message) {
+      // Success status codes: 200, 201, 202, 204
+      if (status >= 200 && status < 300) {
+        // Only show for non-GET requests to avoid excessive notifications
+        if (response.config.method !== 'get') {
+            console.log("Im runnning in a sucecess response");
+          showSuccess(data.message);
+        }
+      }
     }
     
     // Check for warnings in successful responses
@@ -68,6 +75,8 @@ http.interceptors.response.use(
   async (error) => {
     // Handle network errors (no response from server)
     if (!error.response) {
+            console.log("Im runnning in a error response");
+
       if (error.code === 'ECONNABORTED') {
         showError('Request Timeout', 'The request took too long to complete. Please try again.');
       } else if (error.code === 'ERR_NETWORK') {

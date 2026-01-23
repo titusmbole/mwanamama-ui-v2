@@ -1,6 +1,7 @@
 // src/App.tsx
-import React from "react";
+import React, { useEffect } from "react";
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
+import { message } from "antd";
 import { AuthProvider } from "./context/AuthContext";
 import ProtectedRoute from "./routes/ProtectedRoute";
 import Layout from "../src/components/common/Layout/Layout";
@@ -56,10 +57,21 @@ import SpareParts from "./pages/MotorBikes/SpareParts";
 import LoginPage from "./pages/auth/LoginPage";
 import RegisterPage from "./pages/auth/RegisterPage";
 import ForgotPassword from "./pages/auth/ForgotPassword";
+import NotificationProvider from "./context/NotificationProvider";
 
 const App: React.FC = () => {
+  // Configure global message settings
+  useEffect(() => {
+    message.config({
+      top: 80, // Position from top
+      duration: 3, // Auto-close after 3 seconds
+      maxCount: 3, // Maximum number of messages to show at once
+    });
+  }, []);
+
   return (
     <AuthProvider>
+       <NotificationProvider> 
       <Router>
         <Routes>
           {/* Public / Auth routes */}
@@ -141,6 +153,7 @@ const App: React.FC = () => {
           <Route path="*" element={<NotFound />} />
         </Routes>
       </Router>
+      </NotificationProvider>
     </AuthProvider>
   );
 };
