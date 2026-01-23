@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { Button, Table, Modal, Form, Input, Select, message, Tag, Tooltip, Switch } from 'antd';
+import { Button, Table, Drawer, Form, Input, Select, message, Tag, Tooltip, Alert } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
-import { PlusOutlined, EditOutlined, EyeOutlined, CheckCircleOutlined, CloseCircleOutlined, AppstoreAddOutlined } from '@ant-design/icons';
+import { PlusOutlined, EditOutlined, EyeOutlined, CheckCircleOutlined, CloseCircleOutlined } from '@ant-design/icons';
 import PageHeader from '../../components/common/Layout/PageHeader';
 import PageCard from '../../components/common/PageCard/PageCard';
+import FormDrawer from '../../components/common/FormDrawer/FormDrawer';
+import UserDetails from '../../components/UserManagement/UserDetails';
 import { APIS } from '../../services/APIS';
 import http from '../../services/httpInterceptor';
 
@@ -39,19 +41,18 @@ const Users: React.FC = () => {
   const [pagination, setPagination] = useState({ current: 1, pageSize: 10, total: 0 });
   const [searchText, setSearchText] = useState('');
   
-  const [createModalOpen, setCreateModalOpen] = useState(false);
-  const [editModalOpen, setEditModalOpen] = useState(false);
-  const [viewModalOpen, setViewModalOpen] = useState(false);
-  const [appsModalOpen, setAppsModalOpen] = useState(false);
+  const [createDrawerOpen, setCreateDrawerOpen] = useState(false);
+  const [editDrawerOpen, setEditDrawerOpen] = useState(false);
+  const [viewDrawerOpen, setViewDrawerOpen] = useState(false);
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   
   const [submitting, setSubmitting] = useState(false);
+  const [isAdminRole, setIsAdminRole] = useState(false);
+  const [createError, setCreateError] = useState<string>('');
+  const [editError, setEditError] = useState<string>('');
   
   const [roles, setRoles] = useState<Role[]>([]);
   const [branches, setBranches] = useState<Branch[]>([]);
-  const [userApps, setUserApps] = useState<any[]>([]);
-  const [availableApps, setAvailableApps] = useState<any[]>([]);
-  const [selectedApps, setSelectedApps] = useState<number[]>([]);
   
   const [createForm] = Form.useForm();
   const [editForm] = Form.useForm();
@@ -65,7 +66,7 @@ const Users: React.FC = () => {
   const loadData = async (page = 1, pageSize = 10, search = '') => {
     try {
       setLoading(true);
-      const params: any = { page, size: pageSize };
+      const params: any = { page: page - 1, size: pageSize }; // Backend uses 0-indexed pages
       if (search) params.search = search;
 
       const response = await http.get(APIS.LIST_USERS, { params });
@@ -114,14 +115,30 @@ const Users: React.FC = () => {
 
   const handleCreate = async (values: any) => {
     setSubmitting(true);
+    setCreateError('');
     try {
-      await http.post(APIS.CREATE_USER, values);
+      // Transform payload to match backend expectations
+      const payload = {
+        name: values.name,
+        email: values.email,
+        phoneNumber: values.phoneNumber,
+        role: values.role,
+        designation: values.designation,
+        location: values.location,
+        gender: values.gender?.toUpperCase(),
+        idno: values.idno,
+        branch: values.branch,
+      };
+      
+      await http.post(APIS.CREATE_USER, payload);
       message.success('User created successfully');
-      setCreateModalOpen(false);
+      setCreateDrawerOpen(false);
       createForm.resetFields();
+      setCreateError('');
       loadData(pagination.current, pagination.pageSize, searchText);
     } catch (error: any) {
-      message.error(error.response?.data?.message || 'Failed to create user');
+      const errorMessage = error.response?.data?.message || 'Failed to create user';
+      setCreateError(errorMessage);
     } finally {
       setSubmitting(false);
     }
@@ -129,32 +146,49 @@ const Users: React.FC = () => {
 
   const handleEdit = (user: User) => {
     setSelectedUser(user);
+    setIsAdminRole(user.role.roleName === 'ADMIN');
     editForm.setFieldsValue({
       name: user.name,
-      username: user.username,
       email: user.email,
       phoneNumber: user.phoneNumber,
-      idNo: user.idNo,
+      idno: user.idNo,
       gender: user.gender,
       designation: user.designation,
-      roleId: user.role.id,
-      branchId: user.branch.id,
+      location: (user as any).location || '',
+      role: user.role.id,
+      branch: user.branch?.id || null,
     });
-    setEditModalOpen(true);
+    setEditDrawerOpen(true);
   };
 
   const handleUpdate = async (values: any) => {
     if (!selectedUser) return;
     
     setSubmitting(true);
+    setEditError('');
     try {
-      await http.put(`${APIS.UPDATE_USER}/${selectedUser.id}`, values);
+      // Transform payload to match backend expectations
+      const payload = {
+        name: values.name,
+        email: values.email,
+        phoneNumber: values.phoneNumber,
+        role: values.role,
+        designation: values.designation,
+        location: values.location,
+        gender: values.gender?.toUpperCase(),
+        idno: values.idno,
+        branch: values.branch,
+      };
+      
+      await http.put(`${APIS.UPDATE_USER}/${selectedUser.id}`, payload);
       message.success('User updated successfully');
-      setEditModalOpen(false);
+      setEditDrawerOpen(false);
       editForm.resetFields();
+      setEditError('');
       loadData(pagination.current, pagination.pageSize, searchText);
     } catch (error: any) {
-      message.error(error.response?.data?.message || 'Failed to update user');
+      const errorMessage = error.response?.data?.message || 'Failed to update user';
+      setEditError(errorMessage);
     } finally {
       setSubmitting(false);
     }
@@ -170,39 +204,7 @@ const Users: React.FC = () => {
     }
   };
 
-  const handleManageApps = async (user: User) => {
-    setSelectedUser(user);
-    try {
-      const [userAppsResponse, availableAppsResponse] = await Promise.all([
-        http.get(`${APIS.GET_USER_APPS}/${user.id}`),
-        http.get(APIS.GET_ALL_APPS),
-      ]);
-      setUserApps(userAppsResponse.data);
-      setAvailableApps(availableAppsResponse.data);
-      setSelectedApps(userAppsResponse.data.map((app: any) => app.id));
-      setAppsModalOpen(true);
-    } catch (error) {
-      message.error('Failed to load applications');
-    }
-  };
 
-  const handleSaveApps = async () => {
-    if (!selectedUser) return;
-
-    setSubmitting(true);
-    try {
-      await http.post(APIS.ASSIGN_USER_APPS, {
-        userId: selectedUser.id,
-        appIds: selectedApps,
-      });
-      message.success('Applications updated successfully');
-      setAppsModalOpen(false);
-    } catch (error: any) {
-      message.error(error.response?.data?.message || 'Failed to update applications');
-    } finally {
-      setSubmitting(false);
-    }
-  };
 
   const columns: ColumnsType<User> = [
     {
@@ -261,14 +263,7 @@ const Users: React.FC = () => {
             <Button
               type="link"
               icon={<EyeOutlined />}
-              onClick={() => { setSelectedUser(record); setViewModalOpen(true); }}
-            />
-          </Tooltip>
-          <Tooltip title="Manage Apps">
-            <Button
-              type="link"
-              icon={<AppstoreAddOutlined />}
-              onClick={() => handleManageApps(record)}
+              onClick={() => { setSelectedUser(record); setViewDrawerOpen(true); }}
             />
           </Tooltip>
           <Tooltip title={record.allowLogin ? 'Deactivate' : 'Activate'}>
@@ -284,36 +279,69 @@ const Users: React.FC = () => {
     },
   ];
 
-  const formItems = (
+  const handleRoleChange = (value: number, form: any) => {
+    const selectedRole = roles.find(r => r.id === value);
+    const isAdmin = selectedRole?.roleName === 'ADMIN';
+    setIsAdminRole(isAdmin);
+    
+    // Clear branch if switching to ADMIN role
+    if (isAdmin) {
+      form.setFieldsValue({ branch: null });
+    }
+  };
+
+  const formItems = (form: any, error: string) => (
     <>
+      {error && (
+        <Alert
+          message="Error"
+          description={error}
+          type="error"
+          closable
+          onClose={() => form === createForm ? setCreateError('') : setEditError('')}
+          style={{ marginBottom: 16 }}
+        />
+      )}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
-        <Form.Item name="name" label="Full Name" rules={[{ required: true }]}>
-          <Input />
-        </Form.Item>
-        <Form.Item name="username" label="Username" rules={[{ required: true }]}>
-          <Input />
+        <Form.Item name="name" label="Name" rules={[{ required: true }]}>
+          <Input placeholder="Enter Name" />
         </Form.Item>
         <Form.Item name="email" label="Email" rules={[{ required: true, type: 'email' }]}>
-          <Input />
+          <Input placeholder="Enter email" />
         </Form.Item>
         <Form.Item name="phoneNumber" label="Phone Number" rules={[{ required: true }]}>
-          <Input />
+          <Input placeholder="Enter phone number" />
         </Form.Item>
-        <Form.Item name="idNo" label="ID Number" rules={[{ required: true }]}>
-          <Input />
+        <Form.Item name="idno" label="ID Number" rules={[{ required: true }]}>
+          <Input placeholder="Enter ID Number" />
+        </Form.Item>
+        <Form.Item name="designation" label="Designation" rules={[{ required: true }]}>
+          <Input placeholder="Enter Designation" />
+        </Form.Item>
+        <Form.Item name="location" label="Address" rules={[{ required: true }]}>
+          <Input placeholder="Location" />
         </Form.Item>
         <Form.Item name="gender" label="Gender" rules={[{ required: true }]}>
-          <Select options={[{ label: 'Male', value: 'MALE' }, { label: 'Female', value: 'FEMALE' }]} />
+          <Select 
+            placeholder="Select Gender"
+            options={[{ label: 'Male', value: 'male' }, { label: 'Female', value: 'female' }]} 
+          />
         </Form.Item>
-        <Form.Item name="designation" label="Designation">
-          <Input />
+        <Form.Item name="role" label="Role" rules={[{ required: true }]}>
+          <Select 
+            placeholder="Select Role"
+            options={roles.map(r => ({ label: r.roleName, value: r.id }))}
+            onChange={(value) => handleRoleChange(value, form)}
+          />
         </Form.Item>
-        <Form.Item name="roleId" label="Role" rules={[{ required: true }]}>
-          <Select options={roles.map(r => ({ label: r.roleName, value: r.id }))} />
-        </Form.Item>
-        <Form.Item name="branchId" label="Branch" rules={[{ required: true }]}>
-          <Select options={branches.map(b => ({ label: b.branchName, value: b.id }))} />
-        </Form.Item>
+        {!isAdminRole && (
+          <Form.Item name="branch" label="Branch">
+            <Select 
+              placeholder="Select Branch"
+              options={branches.map(b => ({ label: b.branchName, value: b.id }))} 
+            />
+          </Form.Item>
+        )}
       </div>
     </>
   );
@@ -331,7 +359,7 @@ const Users: React.FC = () => {
 
       <PageCard
         extra={
-          <Button type="primary" icon={<PlusOutlined />} onClick={() => setCreateModalOpen(true)}>
+          <Button type="primary" icon={<PlusOutlined />} onClick={() => setCreateDrawerOpen(true)}>
             Add User
           </Button>
         }
@@ -355,87 +383,42 @@ const Users: React.FC = () => {
         />
       </PageCard>
 
-      {/* Create Modal */}
-      <Modal
+      {/* Create Drawer */}
+      <FormDrawer
         title="Add User"
-        open={createModalOpen}
-        onCancel={() => { setCreateModalOpen(false); createForm.resetFields(); }}
-        onOk={() => createForm.submit()}
-        confirmLoading={submitting}
+        open={createDrawerOpen}
+        onClose={() => { setCreateDrawerOpen(false); createForm.resetFields(); setIsAdminRole(false); setCreateError(''); }}
+        onSubmit={handleCreate}
+        loading={submitting}
+        form={createForm}
         width={800}
       >
-        <Form form={createForm} layout="vertical" onFinish={handleCreate}>
-          {formItems}
-          <Form.Item name="password" label="Password" rules={[{ required: true, min: 6 }]}>
-            <Input.Password />
-          </Form.Item>
-        </Form>
-      </Modal>
+        {formItems(createForm, createError)}
+      </FormDrawer>
 
-      {/* Edit Modal */}
-      <Modal
+      {/* Edit Drawer */}
+      <FormDrawer
         title={`Edit: ${selectedUser?.name}`}
-        open={editModalOpen}
-        onCancel={() => { setEditModalOpen(false); editForm.resetFields(); }}
-        onOk={() => editForm.submit()}
-        confirmLoading={submitting}
+        open={editDrawerOpen}
+        onClose={() => { setEditDrawerOpen(false); editForm.resetFields(); setIsAdminRole(false); setEditError(''); }}
+        onSubmit={handleUpdate}
+        loading={submitting}
+        form={editForm}
         width={800}
       >
-        <Form form={editForm} layout="vertical" onFinish={handleUpdate}>
-          {formItems}
-        </Form>
-      </Modal>
+        {formItems(editForm, editError)}
+      </FormDrawer>
 
-      {/* View Modal */}
-      <Modal
+      {/* View Drawer */}
+      <Drawer
         title={selectedUser?.name}
-        open={viewModalOpen}
-        onCancel={() => setViewModalOpen(false)}
-        footer={null}
-        width={700}
+        placement="right"
+        width={900}
+        onClose={() => setViewDrawerOpen(false)}
+        open={viewDrawerOpen}
       >
-        {selectedUser && (
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
-            <div><strong>Username:</strong> {selectedUser.username}</div>
-            <div><strong>Email:</strong> {selectedUser.email}</div>
-            <div><strong>Phone:</strong> {selectedUser.phoneNumber}</div>
-            <div><strong>ID Number:</strong> {selectedUser.idNo}</div>
-            <div><strong>Gender:</strong> {selectedUser.gender}</div>
-            <div><strong>Designation:</strong> {selectedUser.designation || 'N/A'}</div>
-            <div><strong>Role:</strong> {selectedUser.role?.roleName}</div>
-            <div><strong>Branch:</strong> {selectedUser.branch?.branchName}</div>
-            <div><strong>Status:</strong> <Tag color={selectedUser.allowLogin ? 'green' : 'red'}>{selectedUser.allowLogin ? 'ACTIVE' : 'INACTIVE'}</Tag></div>
-            <div><strong>Created:</strong> {new Date(selectedUser.createdAt).toLocaleDateString()}</div>
-          </div>
-        )}
-      </Modal>
-
-      {/* Manage Apps Modal */}
-      <Modal
-        title={`Manage Applications: ${selectedUser?.name}`}
-        open={appsModalOpen}
-        onCancel={() => setAppsModalOpen(false)}
-        onOk={handleSaveApps}
-        confirmLoading={submitting}
-        width={600}
-      >
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-          {availableApps.map((app) => (
-            <div key={app.id} style={{ padding: 8, border: '1px solid #d9d9d9', borderRadius: 4 }}>
-              <Switch
-                checked={selectedApps.includes(app.id)}
-                onChange={(checked) => {
-                  setSelectedApps(checked 
-                    ? [...selectedApps, app.id]
-                    : selectedApps.filter(id => id !== app.id)
-                  );
-                }}
-              />
-              <span style={{ marginLeft: 12 }}>{app.appName}</span>
-            </div>
-          ))}
-        </div>
-      </Modal>
+        {selectedUser && <UserDetails user={selectedUser} />}
+      </Drawer>
     </div>
   );
 };

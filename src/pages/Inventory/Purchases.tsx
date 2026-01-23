@@ -94,7 +94,7 @@ const Purchases: React.FC = () => {
   const loadData = async (page = 1, pageSize = 10) => {
     try {
       setLoading(true);
-      const response = await http.get(APIS.LIST_PURCHASES, { params: { page, size: pageSize } });
+      const response = await http.get(APIS.LIST_PURCHASES, { params: { page: page - 1, size: pageSize } }); // Backend uses 0-indexed pages
       
       if (response.data.content) {
         setData(response.data.content);

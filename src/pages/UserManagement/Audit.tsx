@@ -33,7 +33,7 @@ const Audit: React.FC = () => {
   const loadData = async (page = 1, pageSize = 10, search = '', startDate?: string, endDate?: string) => {
     try {
       setLoading(true);
-      const params: any = { page, size: pageSize };
+      const params: any = { page: page - 1, size: pageSize }; // Backend uses 0-indexed pages
       if (search) params.search = search;
       if (startDate) params.startDate = startDate;
       if (endDate) params.endDate = endDate;
