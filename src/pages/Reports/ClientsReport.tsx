@@ -1,8 +1,9 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { 
     Typography, Card, Row, Col, Statistic, Select, Tag, Table, Progress, Input, Space, Button, 
-    Descriptions, Divider, Spin, message, Skeleton
+    Descriptions, Divider, Spin, message
 } from 'antd';
+import ClientDetailView from '../../components/common/ClientDetailView';
 import { 
     TeamOutlined, SolutionOutlined, UserOutlined, SmileOutlined, 
     DollarCircleOutlined, PushpinOutlined, SearchOutlined, 
@@ -242,239 +243,16 @@ const DemographicBreakdown: React.FC<{ title: string, data: DemographicData[], i
     );
 };
 
-// Client Detail View Component
-const ClientDetailView: React.FC<{ client: ClientRecord, onBack: () => void }> = ({ client, onBack }) => {
-    
-    // Ensure detail data is present (though it should be for the selected client)
-    const latestLoans = client.latestLoans || [];
-    const transactionHistory = client.transactionHistory || [];
-
-    const loanColumns = [
-        { title: 'Loan ID', dataIndex: 'id', key: 'id' },
-        { title: 'Amount', dataIndex: 'amount', key: 'amount', render: (a: number) => formatCurrency(a) },
-        { title: 'Date', dataIndex: 'disbursementDate', key: 'disbursementDate' },
-        { title: 'Purpose', dataIndex: 'purpose', key: 'purpose' },
-        { 
-            title: 'Status', 
-            dataIndex: 'status', 
-            key: 'status', 
-            render: (s: string) => {
-                const props = getLoanStatusTagProps(s);
-                return <Tag color={props.color} icon={props.icon}>{s}</Tag>;
-            }
-        },
-    ];
-
-    const transactionColumns = [
-        { title: 'Date', dataIndex: 'date', key: 'date' },
-        { 
-            title: 'Type', 
-            dataIndex: 'type', 
-            key: 'type', 
-            render: (t: string) => <Tag {...getTransactionTagProps(t)}>{t}</Tag>
-        },
-        { title: 'Amount', dataIndex: 'amount', key: 'amount', render: (a: number) => formatCurrency(a) },
-        { title: 'Description', dataIndex: 'description', key: 'description' },
-    ];
-
-    return (
-        <div className="min-h-screen p-6">
-            {/* Back Button */}
-            <Button 
-                icon={<ArrowLeftOutlined />} 
-                onClick={onBack}
-                className="mb-6"
-                type="link"
-                style={{ color: '#ac202d', paddingLeft: 0 }}
-            >
-                Back to Clients Report
-            </Button>
-            
-            {/* Header Section */}
-            <div>
-                
-                {/* Client Header Card */}
-                <div className="bg-white rounded-2xl shadow-lg p-6 mb-6 border-l-4" style={{ borderLeftColor: '#ac202d' }}>
-                    <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-                        <div className="flex items-center gap-4">
-                            <div className="w-16 h-16 rounded-full flex items-center justify-center text-2xl font-bold text-white" style={{ backgroundColor: '#ac202d' }}>
-                                {client.name.charAt(0)}
-                            </div>
-                            <div>
-                                <h1 className="text-2xl md:text-3xl font-bold text-gray-800">{client.name}</h1>
-                                <div className="flex items-center gap-2 mt-1">
-                                    <span className="text-sm text-gray-500">Client ID:</span>
-                                    <span className="px-3 py-1 text-xs font-semibold rounded-full" style={{ backgroundColor: '#ac202d20', color: '#ac202d' }}>
-                                        {client.clientId}
-                                    </span>
-                                    <Tag color={client.status === 'Active' ? 'green' : client.status === 'Inactive' ? 'default' : 'red'} className="ml-2">
-                                        {client.status}
-                                    </Tag>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                {/* Financial Overview Cards */}
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
-                    <div className="bg-white rounded-xl shadow-md p-6 border-l-4 hover:shadow-lg transition-shadow" style={{ borderLeftColor: '#ac202d' }}>
-                        <div className="flex items-center justify-between mb-3">
-                            <div className="w-12 h-12 rounded-lg flex items-center justify-center" style={{ backgroundColor: '#ac202d10' }}>
-                                <BankOutlined className="text-xl" style={{ color: '#ac202d' }} />
-                            </div>
-                        </div>
-                        <p className="text-sm text-gray-600 font-medium mb-1">Total Savings</p>
-                        <p className="text-2xl font-bold text-gray-900">{formatCurrency(client.savingsBalance)}</p>
-                    </div>
-
-                    <div className="bg-white rounded-xl shadow-md p-6 border-l-4 hover:shadow-lg transition-shadow" style={{ borderLeftColor: '#ac202d' }}>
-                        <div className="flex items-center justify-between mb-3">
-                            <div className="w-12 h-12 rounded-lg flex items-center justify-center" style={{ backgroundColor: '#ac202d10' }}>
-                                <DollarCircleOutlined className="text-xl" style={{ color: '#ac202d' }} />
-                            </div>
-                        </div>
-                        <p className="text-sm text-gray-600 font-medium mb-1">Active Loans</p>
-                        <p className="text-2xl font-bold text-gray-900">{client.activeLoans}</p>
-                    </div>
-
-                    <div className="bg-white rounded-xl shadow-md p-6 border-l-4 hover:shadow-lg transition-shadow" style={{ borderLeftColor: '#ac202d' }}>
-                        <div className="flex items-center justify-between mb-3">
-                            <div className="w-12 h-12 rounded-lg flex items-center justify-center" style={{ backgroundColor: '#ac202d10' }}>
-                                <CalendarOutlined className="text-xl" style={{ color: '#ac202d' }} />
-                            </div>
-                        </div>
-                        <p className="text-sm text-gray-600 font-medium mb-1">Onboard Date</p>
-                        <p className="text-2xl font-bold text-gray-900">{client.onboardDate}</p>
-                    </div>
-                </div>
-
-                {/* Personal Information Card */}
-                <div className="bg-white rounded-2xl shadow-lg p-6 mb-6">
-                    <h2 className="text-xl font-bold text-gray-800 mb-4 flex items-center gap-2">
-                        <UserOutlined style={{ color: '#ac202d' }} />
-                        Personal & Contact Information
-                    </h2>
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                        <div className="p-4 bg-gray-50 rounded-lg border border-gray-200">
-                            <p className="text-xs text-gray-500 mb-1">Age</p>
-                            <p className="text-base font-semibold text-gray-800">{client.age} years</p>
-                        </div>
-                        <div className="p-4 bg-gray-50 rounded-lg border border-gray-200">
-                            <p className="text-xs text-gray-500 mb-1">Gender</p>
-                            <p className="text-base font-semibold text-gray-800">{client.gender === 'F' ? 'Female' : 'Male'}</p>
-                        </div>
-                        <div className="p-4 bg-gray-50 rounded-lg border border-gray-200">
-                            <p className="text-xs text-gray-500 mb-1">ID Number</p>
-                            <p className="text-base font-semibold text-gray-800">{client.idNumber}</p>
-                        </div>
-                        <div className="p-4 bg-gray-50 rounded-lg border border-gray-200">
-                            <p className="text-xs text-gray-500 mb-1">Phone</p>
-                            <p className="text-base font-semibold text-gray-800 flex items-center gap-2">
-                                <PhoneOutlined className="text-green-500" />
-                                {client.phone || 'N/A'}
-                            </p>
-                        </div>
-                        <div className="p-4 bg-gray-50 rounded-lg border border-gray-200">
-                            <p className="text-xs text-gray-500 mb-1">Email</p>
-                            <p className="text-base font-semibold text-gray-800 flex items-center gap-2 break-all">
-                                <MailOutlined className="text-blue-500" />
-                                {client.email || 'N/A'}
-                            </p>
-                        </div>
-                        <div className="p-4 bg-gray-50 rounded-lg border border-gray-200">
-                            <p className="text-xs text-gray-500 mb-1">Branch</p>
-                            <p className="text-base font-semibold text-gray-800">{client.branch}</p>
-                        </div>
-                        <div className="p-4 bg-gray-50 rounded-lg border border-gray-200">
-                            <p className="text-xs text-gray-500 mb-1">Credit Officer</p>
-                            <p className="text-base font-semibold text-gray-800">{client.creditOfficer}</p>
-                        </div>
-                        <div className="p-4 bg-gray-50 rounded-lg border border-gray-200">
-                            <p className="text-xs text-gray-500 mb-1">Group</p>
-                            <p className="text-base font-semibold text-gray-800">{client.groupName}</p>
-                        </div>
-                        <div className="p-4 bg-gray-50 rounded-lg border border-gray-200 md:col-span-2 lg:col-span-1">
-                            <p className="text-xs text-gray-500 mb-1">Address</p>
-                            <p className="text-base font-semibold text-gray-800 flex items-start gap-2">
-                                <HomeOutlined className="text-orange-500 mt-1" />
-                                <span>{client.address || 'N/A'}</span>
-                            </p>
-                        </div>
-                    </div>
-                </div>
-
-                {/* Loan History Section */}
-                <div className="bg-white rounded-2xl shadow-lg p-6 mb-6">
-                    <h2 className="text-xl font-bold text-gray-800 mb-4 flex items-center gap-2">
-                        <DollarCircleOutlined style={{ color: '#ac202d' }} />
-                        Loan History
-                        <span className="ml-2 px-3 py-1 text-xs font-semibold rounded-full" style={{ backgroundColor: '#ac202d20', color: '#ac202d' }}>
-                            {latestLoans.length} {latestLoans.length === 1 ? 'Loan' : 'Loans'}
-                        </span>
-                    </h2>
-                    {latestLoans.length > 0 ? (
-                        <div className="overflow-x-auto">
-                            <Table 
-                                columns={loanColumns} 
-                                dataSource={latestLoans}
-                                rowKey="id"
-                                pagination={false}
-                                size="small"
-                                className="border border-gray-200 rounded-lg"
-                            />
-                        </div>
-                    ) : (
-                        <div className="text-center py-8 text-gray-500">
-                            <DollarCircleOutlined className="text-4xl mb-2" />
-                            <p>No loan history available</p>
-                        </div>
-                    )}
-                </div>
-
-                {/* Transaction History Section */}
-                <div className="bg-white rounded-2xl shadow-lg p-6 mb-6">
-                    <h2 className="text-xl font-bold text-gray-800 mb-4 flex items-center gap-2">
-                        <HistoryOutlined style={{ color: '#ac202d' }} />
-                        Recent Transactions
-                        <span className="ml-2 px-3 py-1 text-xs font-semibold rounded-full" style={{ backgroundColor: '#ac202d20', color: '#ac202d' }}>
-                            {transactionHistory.length} {transactionHistory.length === 1 ? 'Transaction' : 'Transactions'}
-                        </span>
-                    </h2>
-                    {transactionHistory.length > 0 ? (
-                        <div className="overflow-x-auto">
-                            <Table 
-                                columns={transactionColumns} 
-                                dataSource={transactionHistory}
-                                rowKey={(record, index) => `${record.date}-${index}`}
-                                pagination={{ pageSize: 10, showSizeChanger: true }}
-                                size="small"
-                                className="border border-gray-200 rounded-lg"
-                            />
-                        </div>
-                    ) : (
-                        <div className="text-center py-8 text-gray-500">
-                            <HistoryOutlined className="text-4xl mb-2" />
-                            <p>No transaction history available</p>
-                        </div>
-                    )}
-                </div>
-            </div>
-        </div>
-    );
-};
-
 // ----------------------------------------------------
 // 3. MAIN COMPONENT (ClientsReport)
 // ----------------------------------------------------
 
 const ClientsReport: React.FC = () => {
     const [selectedGroup, setSelectedGroup] = useState<number | 'all'>('all');
-    const [selectedClient, setSelectedClient] = useState<ClientRecord | null>(null);
+    const [selectedMemberNumber, setSelectedMemberNumber] = useState<string | number | null>(null);
     const [clientData, setClientData] = useState<ClientRecord[]>([]);
     const [groups, setGroups] = useState<{ id: number; name: string }[]>([]);
     const [loadingGroups, setLoadingGroups] = useState(false);
-    const [loadingClientDetail, setLoadingClientDetail] = useState(false);
 
     // Load groups on mount
     useEffect(() => {
@@ -523,73 +301,10 @@ const ClientsReport: React.FC = () => {
         setClientData(transformedClients);
     };
 
-    const handleViewClient = async (record: ClientRecord) => {
-        setLoadingClientDetail(true);
-        try {
-            // Get client ID from the record
-            const clientId = (record as any).id || record.clientId;
-            
-            // Add 500ms delay for skeleton display
-            const [response] = await Promise.all([
-                http.get(`${APIS.CLIENT_DETAIL}/${clientId}`),
-                new Promise(resolve => setTimeout(resolve, 500))
-            ]);
-            
-            const apiData = response.data;
-            
-            // Map transaction types to display format
-            const mapTransactionType = (type: string): 'Deposit' | 'Withdrawal' | 'Repayment' => {
-                switch (type) {
-                    case 'SAVINGS':
-                    case 'REGISTRATION_FEE':
-                        return 'Deposit';
-                    case 'LOAN_REPAYMENT':
-                        return 'Repayment';
-                    case 'LOAN_DISBURSEMENT':
-                        return 'Withdrawal';
-                    default:
-                        return 'Deposit';
-                }
-            };
-            
-            // Transform API response to ClientRecord format
-            const detailedClient: ClientRecord = {
-                clientId: apiData.clientNumber,
-                name: apiData.fullName,
-                phone: apiData.phone,
-                idNumber: apiData.idNumber,
-                gender: apiData.gender === 'MALE' ? 'M' : 'F',
-                creditOfficer: apiData.creditOfficer,
-                groupName: apiData.group,
-                status: apiData.status as 'Active' | 'Inactive' | 'Suspended',
-                branch: apiData.branch,
-                age: apiData.age,
-                activeLoans: apiData.loanHistory?.filter((loan: any) => loan.status === 'ACTIVE').length || 0,
-                savingsBalance: apiData.totalSavings,
-                onboardDate: apiData.onboardDate,
-                address: apiData.location,
-                email: apiData.email,
-                latestLoans: apiData.loanHistory?.map((loan: any) => ({
-                    id: loan.loanId?.toString() || '',
-                    amount: loan.amount,
-                    disbursementDate: loan.date,
-                    status: loan.status as 'Active' | 'Closed' | 'Default',
-                    purpose: loan.purpose,
-                })) || [],
-                transactionHistory: apiData.transactions?.map((txn: any) => ({
-                    date: txn.date.split('T')[0], // Extract date part
-                    type: mapTransactionType(txn.type),
-                    amount: txn.amount,
-                    description: txn.description,
-                })) || [],
-            };
-            
-            setSelectedClient(detailedClient);
-        } catch (error: any) {
-            message.error(error.response?.data?.message || 'Failed to load client details');
-        } finally {
-            setLoadingClientDetail(false);
-        }
+    const handleViewClient = (record: ClientRecord) => {
+        // Get client ID from the record
+        const clientId = (record as any).id || record.clientId;
+        setSelectedMemberNumber(clientId);
     };
 
     const clientColumns: any = [
@@ -683,60 +398,14 @@ const ClientsReport: React.FC = () => {
     ];
 
     const handleBack = () => {
-        setSelectedClient(null);
+        setSelectedMemberNumber(null);
     };
 
     // Main Report View
     return (
         <div>
-            {selectedClient ? (
-                loadingClientDetail ? (
-                    <div className="p-6">
-                        {/* Header Skeleton */}
-                        <div className="mb-6">
-                            <Skeleton.Button active size="default" style={{ width: 150 }} className="mb-4" />
-                            <div className="bg-white rounded-2xl shadow-lg p-6 mb-6">
-                                <div className="flex items-center gap-4">
-                                    <Skeleton.Avatar active size={64} />
-                                    <div className="flex-1">
-                                        <Skeleton active paragraph={{ rows: 1 }} />
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        {/* Financial Cards Skeleton */}
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
-                            {[1, 2, 3].map((i) => (
-                                <div key={i} className="bg-white rounded-xl shadow-md p-6">
-                                    <Skeleton active paragraph={{ rows: 2 }} />
-                                </div>
-                            ))}
-                        </div>
-
-                        {/* Personal Info Skeleton */}
-                        <div className="bg-white rounded-2xl shadow-lg p-6 mb-6">
-                            <Skeleton active paragraph={{ rows: 1 }} className="mb-4" />
-                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                                {[1, 2, 3, 4, 5, 6].map((i) => (
-                                    <div key={i} className="p-4 bg-gray-50 rounded-lg">
-                                        <Skeleton active paragraph={{ rows: 1 }} />
-                                    </div>
-                                ))}
-                            </div>
-                        </div>
-
-                        {/* Tables Skeleton */}
-                        <div className="bg-white rounded-2xl shadow-lg p-6 mb-6">
-                            <Skeleton active paragraph={{ rows: 4 }} />
-                        </div>
-                        <div className="bg-white rounded-2xl shadow-lg p-6 mb-6">
-                            <Skeleton active paragraph={{ rows: 4 }} />
-                        </div>
-                    </div>
-                ) : (
-                    <ClientDetailView client={selectedClient} onBack={handleBack} />
-                )
+            {selectedMemberNumber ? (
+                <ClientDetailView memberNumber={selectedMemberNumber} onBack={handleBack} />
             ) : (
                 <>
             <PageHeader 
