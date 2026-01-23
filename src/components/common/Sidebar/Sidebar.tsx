@@ -106,7 +106,7 @@ const Sidebar: React.FC<SidebarProps> = ({
                             fontSize: isMobile ? 18 : 20,
                         }}
                     >
-                        TrueTana Capital Ltd
+                        Mwanamama Loan
                     </Title>
                 )}
             </div>
