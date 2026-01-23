@@ -11,6 +11,7 @@ import {
     CheckCircleOutlined, WarningOutlined, CalendarOutlined, LoadingOutlined
 } from '@ant-design/icons';
 import PageHeader from '../../components/common/Layout/PageHeader';
+import DataTable from '../../components/common/DataTable/DataTable';
 import http from '../../services/httpInterceptor';
 import { APIS } from '../../services/APIS';
 
@@ -75,6 +76,7 @@ interface ApiClientRecord {
     gender: string;
     creditOfficerName: string;
     groupName: string;
+    groupId: number;
     status: string;
     branchName: string;
     clientNumber: string;
@@ -358,80 +360,93 @@ const ClientDetailView: React.FC<{ client: ClientRecord, onBack: () => void }> =
 // ----------------------------------------------------
 
 const ClientsReport: React.FC = () => {
-    const [searchText, setSearchText] = useState('');
-    const [selectedGroup, setSelectedGroup] = useState<string>('all');
+    const [selectedGroup, setSelectedGroup] = useState<number | 'all'>('all');
     const [selectedClient, setSelectedClient] = useState<ClientRecord | null>(null);
     const [clientData, setClientData] = useState<ClientRecord[]>([]);
-    const [loading, setLoading] = useState(false);
+    const [groups, setGroups] = useState<{ id: number; name: string }[]>([]);
+    const [loadingGroups, setLoadingGroups] = useState(false);
 
-    // Fetch clients data from API
+    // Load groups on mount
     useEffect(() => {
-        const fetchClients = async () => {
-            setLoading(true);
+        const loadGroups = async () => {
+            setLoadingGroups(true);
             try {
-                const response = await http.get(APIS.CLIENTS_REPORT);
-                // API returns paginated data with content array
-                const apiClients: ApiClientRecord[] = response.data.content || [];
-                
-                // Transform API data to match ClientRecord interface
-                const transformedClients: ClientRecord[] = apiClients.map((client: ApiClientRecord) => ({
-                    clientId: client.clientNumber,
-                    name: client.fullName,
-                    phone: client.phone,
-                    idNumber: client.idNumber,
-                    gender: client.gender === 'MALE' ? 'M' : 'F',
-                    creditOfficer: client.creditOfficerName,
-                    groupName: client.groupName,
-                    status: client.status as 'Active' | 'Inactive' | 'Suspended',
-                    branch: client.branchName,
-                    age: client.dob ? new Date().getFullYear() - new Date(client.dob).getFullYear() : 0,
-                    activeLoans: client.loan > 0 ? 1 : 0,
-                    savingsBalance: client.saving,
-                    onboardDate: client.dob || '',
+                const response = await http.get(APIS.LOAD_GROUPS_UNPAGINATED);
+                const groupOptions = response.data.map((group: { groupName: string; id: number }) => ({
+                    id: group.id,
+                    name: group.groupName,
                 }));
-                
-                setClientData(transformedClients);
+                setGroups(groupOptions);
             } catch (error: any) {
-                message.error('Failed to load clients data');
-                console.error('Error fetching clients:', error);
+                message.error(error.response?.data?.message || 'Failed to load groups');
             } finally {
-                setLoading(false);
+                setLoadingGroups(false);
             }
         };
-
-        fetchClients();
+        loadGroups();
     }, []);
 
-    // Get unique groups for filter
-    const uniqueGroups = useMemo(() => {
-        const groups = Array.from(new Set(clientData.map(client => client.groupName)));
-        return groups.sort();
-    }, [clientData]);
+    // Memoize group filter params to prevent unnecessary re-renders
+    const groupFilterParams = useMemo(() => {
+        return selectedGroup && selectedGroup !== 'all' ? { group: selectedGroup } : {};
+    }, [selectedGroup]);
 
-    const handleViewClient = (record: ClientRecord) => {
-        // Find the full detailed record (in a real app, this would be an API call)
-        const detailedClient = mockClientData.find(c => c.clientId === record.clientId);
-        if (detailedClient) {
-            // Set the state to the detailed client, which triggers the conditional render
-            setSelectedClient(detailedClient);
-        } else {
-            console.error(`Client ${record.clientId} not found.`);
-        }
+    // Transform API data when loaded
+    const handleDataLoaded = (data: any[]) => {
+        const transformedClients: ClientRecord[] = data.map((client: ApiClientRecord) => ({
+            clientId: client.clientNumber,
+            name: client.fullName,
+            phone: client.phone,
+            idNumber: client.idNumber,
+            gender: client.gender === 'MALE' ? 'M' : 'F',
+            creditOfficer: client.creditOfficerName,
+            groupName: client.groupName,
+            status: client.status as 'Active' | 'Inactive' | 'Suspended',
+            branch: client.branchName,
+            age: client.dob ? new Date().getFullYear() - new Date(client.dob).getFullYear() : 0,
+            activeLoans: client.loan > 0 ? 1 : 0,
+            savingsBalance: client.saving,
+            onboardDate: client.dob || '',
+            groupId: client.groupId, // Preserve groupId for filtering
+        } as any));
+        setClientData(transformedClients);
     };
 
-    const clientColumns = [
+    const handleViewClient = (record: ClientRecord) => {
+        // Create a detailed client with dummy transaction/loan data for viewing
+        const detailedClient: ClientRecord = {
+            ...record,
+            address: record.idNumber ? `${record.idNumber.slice(0, 2)} Main Street, ${record.branch}` : 'Address not available',
+            email: `${record.name.toLowerCase().replace(/\s+/g, '.')}@example.com`,
+            latestLoans: record.activeLoans > 0 ? [
+                { 
+                    id: `L${Math.floor(Math.random() * 90000) + 10000}`, 
+                    amount: 50000, 
+                    disbursementDate: '2024-05-10', 
+                    status: 'Active', 
+                    purpose: 'Working Capital' 
+                }
+            ] : [],
+            transactionHistory: [
+                { date: '2025-11-20', type: 'Repayment', amount: 5000, description: 'Loan installment payment' },
+                { date: '2025-11-15', type: 'Deposit', amount: 2000, description: 'Savings deposit' },
+            ]
+        };
+        
+        setSelectedClient(detailedClient);
+    };
+
+    const clientColumns: any = [
         {
             title: 'Client ID',
-            dataIndex: 'clientId',
-            key: 'clientId',
-            sorter: (a: ClientRecord, b: ClientRecord) => a.clientId.localeCompare(b.clientId),
+            dataIndex: 'clientNumber',
+            key: 'clientNumber',
         },
         {
             title: 'Name',
-            dataIndex: 'name',
-            key: 'name',
+            dataIndex: 'fullName',
+            key: 'fullName',
             render: (text: string) => <Tag icon={<UserOutlined />} color="blue">{text}</Tag>,
-            sorter: (a: ClientRecord, b: ClientRecord) => a.name.localeCompare(b.name),
         },
         {
             title: 'Phone Number',
@@ -448,15 +463,15 @@ const ClientsReport: React.FC = () => {
             dataIndex: 'gender',
             key: 'gender',
             render: (gender: string) => (
-                <Tag color={gender === 'F' ? 'volcano' : 'geekblue'}>
-                    {gender === 'F' ? 'Female' : 'Male'}
+                <Tag color={gender === 'MALE' ? 'geekblue' : 'volcano'}>
+                    {gender === 'MALE' ? 'Male' : 'Female'}
                 </Tag>
             ),
         },
         {
             title: 'Credit Officer',
-            dataIndex: 'creditOfficer',
-            key: 'creditOfficer',
+            dataIndex: 'creditOfficerName',
+            key: 'creditOfficerName',
         },
         {
             title: 'Group Name',
@@ -475,49 +490,42 @@ const ClientsReport: React.FC = () => {
         },
         {
             title: 'Branch',
-            dataIndex: 'branch',
-            key: 'branch',
+            dataIndex: 'branchName',
+            key: 'branchName',
         },
-        // ACTION COLUMN - Now correctly triggers state change
         {
             title: 'Action',
             key: 'action',
-            render: (_: any, record: ClientRecord) => (
-                <Button 
-                    type="link" 
-                    onClick={() => handleViewClient(record)} 
-                    icon={<EyeOutlined />}
-                    className="p-0"
-                >
-                    View Details
-                </Button>
-            ),
+            render: (_: any, record: ApiClientRecord) => {
+                const transformedRecord: ClientRecord = {
+                    clientId: record.clientNumber,
+                    name: record.fullName,
+                    phone: record.phone,
+                    idNumber: record.idNumber,
+                    gender: record.gender === 'MALE' ? 'M' : 'F',
+                    creditOfficer: record.creditOfficerName,
+                    groupName: record.groupName,
+                    status: record.status as 'Active' | 'Inactive' | 'Suspended',
+                    branch: record.branchName,
+                    age: record.dob ? new Date().getFullYear() - new Date(record.dob).getFullYear() : 0,
+                    activeLoans: record.loan > 0 ? 1 : 0,
+                    savingsBalance: record.saving,
+                    onboardDate: record.dob || '',
+                };
+                return (
+                    <Button 
+                        type="link" 
+                        onClick={() => handleViewClient(transformedRecord)} 
+                        icon={<EyeOutlined />}
+                        className="p-0"
+                    >
+                        View Details
+                    </Button>
+                );
+            },
         },
     ];
 
-    const filteredClientData = useMemo(() => {
-        let filtered = clientData;
-        
-        // Filter by group
-        if (selectedGroup !== 'all') {
-            filtered = filtered.filter(client => client.groupName === selectedGroup);
-        }
-        
-        // Filter by search text
-        if (searchText) {
-            const lowerCaseSearch = searchText.toLowerCase();
-            filtered = filtered.filter(client =>
-                client.name.toLowerCase().includes(lowerCaseSearch) ||
-                client.clientId.toLowerCase().includes(lowerCaseSearch) ||
-                client.phone.toLowerCase().includes(lowerCaseSearch) ||
-                client.idNumber.toLowerCase().includes(lowerCaseSearch) ||
-                client.creditOfficer.toLowerCase().includes(lowerCaseSearch)
-            );
-        }
-        
-        return filtered;
-    }, [searchText, selectedGroup, clientData]);
-    
     // Conditionally render the detailed view or the main report
     if (selectedClient) {
         return <ClientDetailView client={selectedClient} onBack={() => setSelectedClient(null)} />;
@@ -590,48 +598,32 @@ const ClientsReport: React.FC = () => {
             </Row>
             
             <Card title={<Title level={4} className="mb-0"><PushpinOutlined /> Clients Folder</Title>} className="mt-4 shadow-lg border-t-4 border-gray-400">
-                <Space direction="vertical" className="w-full">
-                    <Row gutter={16}>
-                        <Col xs={24} md={12}>
-                            <Input
-                                placeholder="Search by Name, ID, Phone, ID Number, or Officer..."
-                                prefix={<SearchOutlined />}
-                                allowClear
-                                value={searchText}
-                                onChange={e => setSearchText(e.target.value)}
-                                size="large"
-                            />
-                        </Col>
-                        <Col xs={24} md={12}>
+                <DataTable
+                    apiUrl={APIS.CLIENTS_REPORT}
+                    columns={clientColumns}
+                    searchPlaceholder="Search by Name, ID, Phone, ID Number, or Officer..."
+                    onDataLoaded={handleDataLoaded}
+                    rowKey="clientNumber"
+                    additionalParams={groupFilterParams}
+                    extraFilters={
+                        <Space>
                             <Select
                                 placeholder="Filter by Group"
                                 value={selectedGroup}
                                 onChange={(value) => setSelectedGroup(value)}
-                                size="large"
-                                style={{ width: '100%' }}
+                                style={{ width: 250 }}
+                                loading={loadingGroups}
+                                disabled={loadingGroups}
                             >
                                 <Option value="all">All Groups</Option>
-                                {uniqueGroups.map(group => (
-                                    <Option key={group} value={group}>{group}</Option>
+                                {groups.map(group => (
+                                    <Option key={group.id} value={group.id}>{group.name}</Option>
                                 ))}
                             </Select>
-                        </Col>
-                    </Row>
-                    <Text type="secondary" className="block mb-2">
-                        Displaying {filteredClientData.length} of {clientData.length} total clients.
-                    </Text>
-                </Space>
-                
-                <Spin spinning={loading} tip="Loading clients..." indicator={<LoadingOutlined spin />}>
-                    <Table 
-                        columns={clientColumns} 
-                        dataSource={filteredClientData}
-                        rowKey="clientId"
-                        pagination={{ pageSize: 10 }}
-                        size="small"
-                        className="mt-4"
-                    />
-                </Spin>
+                            {loadingGroups && <Spin size="small" />}
+                        </Space>
+                    }
+                />
             </Card>
             </div>
         </div>

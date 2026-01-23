@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { Table, Input, Space, Button, message } from 'antd';
 import { SearchOutlined, ReloadOutlined } from '@ant-design/icons';
 import type { TableProps } from 'antd';
@@ -14,6 +14,7 @@ interface DataTableProps {
   rowKey?: string;
   expandable?: TableProps<any>['expandable'];
   scroll?: TableProps<any>['scroll'];
+  additionalParams?: Record<string, any>;
 }
 
 const DataTable: React.FC<DataTableProps> = ({
@@ -25,7 +26,8 @@ const DataTable: React.FC<DataTableProps> = ({
   onDataLoaded,
   rowKey = "id",
   expandable,
-  scroll
+  scroll,
+  additionalParams = {}
 }) => {
   const [data, setData] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
@@ -35,8 +37,12 @@ const DataTable: React.FC<DataTableProps> = ({
     total: 0,
   });
   const [searchText, setSearchText] = useState('');
+  const prevParamsRef = useRef<string>('');
 
-  const fetchData = useCallback(async (page = 1, pageSize = 10, search = '') => {
+  // Stringify params to detect real changes
+  const paramsString = useMemo(() => JSON.stringify(additionalParams), [additionalParams]);
+
+  const fetchData = useCallback(async (page = 1, pageSize = 10, search = '', params = additionalParams) => {
     setLoading(true);
     try {
       const response = await http.get(apiUrl, {
@@ -44,6 +50,7 @@ const DataTable: React.FC<DataTableProps> = ({
           page: page - 1, // Backend uses 0-based indexing
           size: pageSize,
           search: search || undefined,
+          ...params,
         },
       });
 
@@ -88,20 +95,30 @@ const DataTable: React.FC<DataTableProps> = ({
   }, [apiUrl, onDataLoaded]);
 
   useEffect(() => {
-    fetchData(pagination.current, pagination.pageSize, searchText);
+    fetchData(1, pagination.pageSize, searchText, additionalParams);
   }, []);
 
+  useEffect(() => {
+    // Only refetch if params actually changed
+    if (prevParamsRef.current !== paramsString) {
+      prevParamsRef.current = paramsString;
+      if (prevParamsRef.current !== JSON.stringify({})) { // Skip initial empty object
+        fetchData(1, pagination.pageSize, searchText, additionalParams);
+      }
+    }
+  }, [paramsString, searchText, pagination.pageSize, additionalParams, fetchData]);
+
   const handleTableChange = (newPagination: any) => {
-    fetchData(newPagination.current, newPagination.pageSize, searchText);
+    fetchData(newPagination.current, newPagination.pageSize, searchText, additionalParams);
   };
 
   const handleSearch = (value: string) => {
     setSearchText(value);
-    fetchData(1, pagination.pageSize, value);
+    fetchData(1, pagination.pageSize, value, additionalParams);
   };
 
   const handleRefresh = () => {
-    fetchData(pagination.current, pagination.pageSize, searchText);
+    fetchData(pagination.current, pagination.pageSize, searchText, additionalParams);
   };
 
   return (
