@@ -119,12 +119,6 @@ const Settings: React.FC = () => {
             />
             
             <div className="page-container p-4 min-h-screen bg-gray-50">
-                <Title level={2} className="text-gray-800">
-                    ⚙️ Application Settings <SettingOutlined style={{ color: '#555' }} />
-                </Title>
-                <Text type="secondary">
-                    Manage **core system configurations** that affect all users and financial calculations.
-                </Text>
 
             <Card className="mt-4 shadow-lg border-t-4 border-gray-400">
                 <Tabs defaultActiveKey="general" type="line" size="large">

@@ -125,13 +125,7 @@ const Audit: React.FC = () => {
       dataIndex: 'timestamp',
       key: 'timestamp',
       render: (timestamp) => dayjs(timestamp).format('YYYY-MM-DD HH:mm:ss'),
-    },
-    {
-      title: 'Details',
-      dataIndex: 'details',
-      key: 'details',
-      render: (text) => text || 'N/A',
-    },
+    }
   ];
 
   return (
