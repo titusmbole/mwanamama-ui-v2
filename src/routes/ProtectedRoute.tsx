@@ -8,10 +8,10 @@ interface Props {
 }
 
 const ProtectedRoute: React.FC<Props> = ({ children }) => {
-  const { user } = useAuth();
+  const { token } = useAuth();
 
   // If not authenticated, redirect to login
-  if (!user) {
+  if (!token) {
     return <Navigate to="/auth/login" replace />;
   }
 

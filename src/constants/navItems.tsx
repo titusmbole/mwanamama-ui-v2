@@ -11,8 +11,11 @@ import {
   CalendarOutlined,
   AccountBookOutlined,
   UserSwitchOutlined,
+  AppstoreOutlined,
+  ShoppingCartOutlined,
 } from "@ant-design/icons";
 import { MessageCircle } from "lucide-react";
+import { FaMotorcycle } from "react-icons/fa";
 
 export const navItems: NavItem[] = [
   // ================= Dashboard =================
@@ -41,7 +44,7 @@ export const navItems: NavItem[] = [
       { name: "Collection Sheet", path: "/collection/add", pro: false },
       { name: "Loans", path: "/loans", pro: false },
       { name: "Manual Repayment", path: "/manual", pro: false },
-      { name: "EMI Calculator", path: "/EMI", pro: false },
+      { name: "EMI Calculator", path: "/emi", pro: false },
     ],
   },
 
@@ -62,6 +65,42 @@ export const navItems: NavItem[] = [
     subItems: [
       { name: "Down Payments", path: "/accounts/savings", pro: false },
       { name: "Loan Accounts", path: "/accounts/loans", pro: false },
+    ],
+  },
+
+  // ================= Online Sales =================
+  {
+    name: "Online Sales",
+    icon: <ShoppingCartOutlined />,
+    subItems: [
+      { name: "Sales", path: "/sales/sale", pro: false },
+      { name: "Customers", path: "/individual/customer", pro: false },
+    ],
+  },
+
+  // ================= Motor Bikes =================
+  {
+    name: "Motor Bikes",
+    icon: <FaMotorcycle />,
+    subItems: [
+      { name: "Models", path: "/bike/models", pro: false },
+      { name: "Motor Bikes", path: "/bike/list", pro: false },
+      { name: "Spare Parts", path: "/bike/spare", pro: false },
+    ],
+  },
+
+  // ================= Inventory =================
+  {
+    name: "Inventory",
+    icon: <AppstoreOutlined />,
+    subItems: [
+      { name: "Product Catalog", path: "/products", pro: false },
+      { name: "Category", path: "/categories", pro: false },
+      { name: "Stock Adjustments", path: "/stocks", pro: false },
+      { name: "Brands", path: "/brands", pro: false },
+      { name: "Suppliers", path: "/suppliers", pro: false },
+      { name: "Purchases", path: "/purchases", pro: false },
+      { name: "Orders", path: "/orders", pro: false },
     ],
   },
 
@@ -98,7 +137,9 @@ export const navItems: NavItem[] = [
       { name: "Clients", path: "/report/clients", pro: false },
       { name: "Dues", path: "/report/loans/due", pro: false },
       { name: "Arrears", path: "/report/loans/arrears", pro: false },
+      { name: "Profit & Loss", path: "/report/profit-and-loss", pro: false },
       { name: "Branch Performance", path: "/report/BranchPerformance", pro: false },
+      { name: "Sales Performance", path: "/report/SalesPerformance", pro: false },
     ],
   },
 ];

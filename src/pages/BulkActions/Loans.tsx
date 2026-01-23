@@ -1,489 +1,407 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState } from 'react';
+import { Button, Modal, Form, InputNumber, Tag, message, Tooltip } from 'antd';
+import type { ColumnsType } from 'antd/es/table';
 import { 
-    Typography, Card, Button, Upload, Table, Tag, Row, Col, Progress, message, Space, Statistic, Modal, Form, Select, InputNumber
-} from 'antd';
-import { 
-    UploadOutlined, CheckCircleOutlined, CloseCircleOutlined, SendOutlined, LineChartOutlined, FileExcelOutlined, DollarCircleOutlined, DownloadOutlined, TeamOutlined // ADDED TeamOutlined
+  PlusOutlined, PlusCircleOutlined, EditOutlined, EyeOutlined,
+  CheckCircleOutlined, ClockCircleOutlined, CloseCircleOutlined
 } from '@ant-design/icons';
 import PageHeader from '../../components/common/Layout/PageHeader';
+import DataTable from '../../components/common/DataTable/DataTable';
+import PageCard from '../../components/common/PageCard/PageCard';
+import FormDrawer from '../../components/common/FormDrawer/FormDrawer';
+import { APIS } from '../../services/APIS';
+import http from '../../services/httpInterceptor';
+import { useAuth } from '../../context/AuthContext';
 
-const { Title, Text } = Typography;
-const { Option } = Select;
-
-const CURRENCY = 'Ksh';
-
-// ----------------------------------------------------
-// 1. DATA STRUCTURES & MOCK DATA
-// ----------------------------------------------------
-
-// --- CSV TEMPLATE DATA (Unchanged) ---
-const CSV_TEMPLATE_CONTENT = 
-`clientId,clientName,requestedAmount,interestRate,termMonths
-C01005,Jane Achieng,85000,12,18
-C01006,Peter Okello,150000,10,24
-C01007,Fatuma Omar,50000,15,6
-C01008,Samwel Njuguna,25000,18,3
-C01009,Esther Chebet,95000,12,12`;
-
-// Simplified Group list (matching the previous context)
-const mockGroups = [
-    { id: 101, groupName: 'Truetana Investment Group', loanAccountNumber: 'LN001A' },
-    { id: 102, groupName: 'Unity Sacco', loanAccountNumber: 'LN003C' },
-    // Mock clients associated with a group for this disbursement modal
-    { clientId: 'G010A', clientName: 'Member One', defaultAmount: 50000 },
-    { clientId: 'G010B', clientName: 'Member Two', defaultAmount: 40000 },
-    { clientId: 'G010C', clientName: 'Member Three', defaultAmount: 60000 },
-];
-
-interface BulkBatchItem {
-    clientId: string;
-    clientName: string;
-    requestedAmount: number;
-    interestRate: number;
-    termMonths: number;
-    validationStatus: 'Valid' | 'Invalid' | 'Ready';
-    validationError: string;
-    disbursementStatus: 'Pending' | 'Success' | 'Failed';
-    disbursedAmount?: number;
+interface Loan {
+  id: number;
+  customerName: string;
+  groupName: string;
+  type: string;
+  totalLoan: number;
+  principalAmount: number;
+  interestAmount: number;
+  durationMonths: number;
+  balance: number;
+  totalPaid: number;
+  nextPaymentDate: string;
+  bookedBy: string;
+  loanItems?: LoanItem[];
+  status: 'ACTIVE' | 'PENDING' | 'APPROVED' | 'REJECTED' | 'REPAID' | 'DUE';
 }
 
-const initialBatchResults: BulkBatchItem[] = [
-    // ... initial mock data (kept for file upload simulation) ...
-];
-
-// ----------------------------------------------------
-// 2. HELPER FUNCTIONS (Unchanged)
-// ----------------------------------------------------
-
-const formatCurrency = (amount: number) => {
-    return `${CURRENCY} ${amount.toLocaleString('en-US', { minimumFractionDigits: 2 })}`;
-};
-
-const handleDownloadTemplate = () => {
-    // ... (download logic remains the same) ...
-    const blob = new Blob([CSV_TEMPLATE_CONTENT], { type: 'text/csv;charset=utf-8;' });
-    const link = document.createElement("a");
-    const url = URL.createObjectURL(blob);
-    link.setAttribute("href", url);
-    link.setAttribute("download", "loan_bulk_disbursement_template.csv");
-    link.style.visibility = 'hidden';
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    message.success('Download initiated for the CSV template.');
-};
-
-
-// ----------------------------------------------------
-// 3. DISBURSE BY GROUP MODAL
-// ----------------------------------------------------
-
-interface DisburseByGroupModalProps {
-    visible: boolean;
-    onClose: () => void;
-    onDisburse: (groupName: string, batchData: BulkBatchItem[]) => void;
-    setLoading: (loading: boolean) => void;
+interface LoanItem {
+  productName: string;
+  quantity: number;
 }
 
-const DisburseByGroupModal: React.FC<DisburseByGroupModalProps> = ({ visible, onClose, onDisburse, setLoading }) => {
-    const [form] = Form.useForm();
-    const [selectedGroup, setSelectedGroup] = useState<string | null>(null);
+const Loans: React.FC = () => {
+  const { user } = useAuth();
+  const isAdmin = user?.role === 'ADMIN';
+  
+  const [createModalOpen, setCreateModalOpen] = useState(false);
+  const [paymentModalOpen, setPaymentModalOpen] = useState(false);
+  const [statusModalOpen, setStatusModalOpen] = useState(false);
+  const [viewModalOpen, setViewModalOpen] = useState(false);
+  const [selectedLoan, setSelectedLoan] = useState<Loan | null>(null);
+  const [submitLoading, setSubmitLoading] = useState(false);
+  const [refreshKey, setRefreshKey] = useState(0);
+  const [activeTab, setActiveTab] = useState<'all' | 'ACTIVE' | 'PENDING' | 'REJECTED'>('all');
+  const [paymentForm] = Form.useForm();
+  const [statusForm] = Form.useForm();
 
-    // Mock client data for the selected group (static for simplicity)
-    const mockGroupClients = [
-        { clientId: 'G010A', clientName: 'Member One', defaultAmount: 50000 },
-        { clientId: 'G010B', clientName: 'Member Two', defaultAmount: 40000 },
-        { clientId: 'G010C', clientName: 'Member Three', defaultAmount: 60000 },
-    ];
+  const getApiUrl = () => {
+    if (activeTab === 'all') {
+      return APIS.LIST_LOANS;
+    }
+    return `${APIS.LIST_LOANS}?status=${activeTab}`;
+  };
 
-    const handleGenerateAndDisburse = (values: any) => {
-        const groupName = values.groupName;
-        setLoading(true);
-        message.info(`Generating batch for ${groupName}...`);
+  const handleAddPayment = (loan: Loan) => {
+    setSelectedLoan(loan);
+    paymentForm.resetFields();
+    setPaymentModalOpen(true);
+  };
 
-        // 1. Generate Batch Data based on group members
-        const generatedBatch: BulkBatchItem[] = mockGroupClients.map(client => ({
-            clientId: client.clientId,
-            clientName: client.clientName,
-            requestedAmount: values[`amount_${client.clientId}`] || client.defaultAmount,
-            interestRate: values.interestRate,
-            termMonths: values.termMonths,
-            validationStatus: 'Valid', // Assume valid for modal process
-            validationError: '',
-            disbursementStatus: 'Pending',
-        }));
+  const handleEditStatus = (loan: Loan) => {
+    setSelectedLoan(loan);
+    statusForm.setFieldsValue({ status: loan.status });
+    setStatusModalOpen(true);
+  };
 
-        // 2. Pass the data back to the main component for processing
-        setTimeout(() => {
-            onDisburse(groupName, generatedBatch);
-            setLoading(false);
-            onClose();
-            form.resetFields();
-        }, 1000);
-    };
+  const handleView = (loan: Loan) => {
+    setSelectedLoan(loan);
+    setViewModalOpen(true);
+  };
 
-    return (
-        <Modal
-            title={<Title level={4}><TeamOutlined /> Disburse Loans by Group</Title>}
-            open={visible}
-            onCancel={onClose}
-            okText="Generate & Disburse Batch"
-            onOk={form.submit}
-            width={800}
-        >
-            <Form form={form} layout="vertical" onFinish={handleGenerateAndDisburse}>
-                <Row gutter={16}>
-                    <Col span={12}>
-                        <Form.Item
-                            name="groupName"
-                            label="Select Group"
-                            rules={[{ required: true, message: 'Please select a group' }]}
-                        >
-                            <Select 
-                                placeholder="Select the target group"
-                                onChange={(value: string) => setSelectedGroup(value)}
-                            >
-                                {mockGroups.map(g => (
-                                    <Option key={g.id} value={g.groupName}>
-                                        {g.groupName} (Loan: {g.loanAccountNumber})
-                                    </Option>
-                                ))}
-                            </Select>
-                        </Form.Item>
-                    </Col>
-                    <Col span={6}>
-                         <Form.Item
-                            name="interestRate"
-                            label="Interest Rate (%)"
-                            initialValue={12}
-                            rules={[{ required: true, message: 'Enter rate' }]}
-                        >
-                             <InputNumber min={5} max={30} step={0.5} style={{ width: '100%' }} />
-                        </Form.Item>
-                    </Col>
-                     <Col span={6}>
-                         <Form.Item
-                            name="termMonths"
-                            label="Term (Months)"
-                            initialValue={12}
-                            rules={[{ required: true, message: 'Enter term' }]}
-                        >
-                            <InputNumber min={1} max={60} style={{ width: '100%' }} />
-                        </Form.Item>
-                    </Col>
-                </Row>
+  const handlePayment = async (values: any) => {
+    if (!selectedLoan) return;
 
-                {selectedGroup && (
-                    <Card title="Individual Client Disbursements" className="mt-4 bg-gray-50">
-                        <Text type="secondary" block className="mb-3">
-                            Set the individual loan amounts for each group member.
-                        </Text>
-                        <Row gutter={16}>
-                            {mockGroupClients.map(client => (
-                                <Col span={8} key={client.clientId}>
-                                    <Form.Item
-                                        name={`amount_${client.clientId}`}
-                                        label={client.clientName}
-                                        initialValue={client.defaultAmount}
-                                        rules={[{ required: true, message: 'Enter amount' }]}
-                                    >
-                                        <InputNumber 
-                                            min={1000} 
-                                            formatter={value => `${CURRENCY} ${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
-                                            parser={value => value ? value.replace(new RegExp(`^${CURRENCY}\\s?|\\s?${CURRENCY}|,`, 'g'), '') : 0}
-                                            style={{ width: '100%' }}
-                                        />
-                                    </Form.Item>
-                                </Col>
-                            ))}
-                        </Row>
-                    </Card>
-                )}
-            </Form>
-        </Modal>
-    );
-};
+    setSubmitLoading(true);
+    try {
+      const response = await http.post(`${APIS.REPAY_LOAN}/${selectedLoan.id}`, {
+        amount: values.amount,
+      });
+      message.success(response.data.message || 'Payment added successfully');
+      setPaymentModalOpen(false);
+      paymentForm.resetFields();
+      setRefreshKey(prev => prev + 1);
+    } catch (error: any) {
+      message.error(
+        error.response?.status === 403
+          ? 'Not authorized to perform this action!'
+          : error.response?.data?.message || 'Failed to add payment'
+      );
+    } finally {
+      setSubmitLoading(false);
+    }
+  };
 
+  const handleStatusUpdate = async (values: any) => {
+    if (!selectedLoan) return;
 
-// ----------------------------------------------------
-// 4. MAIN COMPONENT (Bulk Loans)
-// ----------------------------------------------------
+    setSubmitLoading(true);
+    try {
+      const response = await http.put(`${APIS.UPDATE_STATUS}/${selectedLoan.id}`, {
+        status: values.status,
+      });
+      message.success(response.data.message || 'Status updated successfully');
+      setStatusModalOpen(false);
+      statusForm.resetFields();
+      setRefreshKey(prev => prev + 1);
+    } catch (error: any) {
+      message.error(
+        error.response?.status === 403
+          ? 'Not authorized to perform this action!'
+          : error.response?.data?.message || 'Failed to update status'
+      );
+    } finally {
+      setSubmitLoading(false);
+    }
+  };
 
-const BulkLoanDisbursementModule: React.FC = () => {
-    const [batchData, setBatchData] = useState<BulkBatchItem[]>([]);
-    const [loading, setLoading] = useState(false);
-    const [currentStep, setCurrentStep] = useState(0); 
-    const [isModalVisible, setIsModalVisible] = useState(false); // New state for modal
+  const formatCurrency = (amount: number) => {
+    return `Ksh ${amount.toLocaleString('en-US', { minimumFractionDigits: 2 })}`;
+  };
 
-    // --- Metrics (Unchanged) ---
-    const totalCount = batchData.length;
-    const validCount = batchData.filter(item => item.validationStatus === 'Valid').length;
-    const readyToDisburseCount = batchData.filter(item => item.validationStatus === 'Valid' && item.disbursementStatus === 'Pending').length;
-    const successCount = batchData.filter(item => item.disbursementStatus === 'Success').length;
-    const totalDisbursementAmount = useMemo(() => 
-        batchData.reduce((sum, item) => sum + (item.disbursedAmount || 0), 0), [batchData]
-    );
-
-    // --- Handlers ---
-
-    // Handles simulation from the Upload button
-    const handleFileUpload = (file: File) => {
-        setLoading(true);
-        message.info(`Simulating upload and validation of ${file.name}...`);
-        setTimeout(() => {
-            // Use initialBatchResults for file upload simulation
-            setBatchData(initialBatchResults.length > 0 ? initialBatchResults : mockGroups.map(g => ({...g, requestedAmount: 50000, interestRate: 10, termMonths: 12, validationStatus: 'Valid', validationError: '', disbursementStatus: 'Pending'})));
-            setCurrentStep(1); 
-            message.success('File validated. Review the batch status below.');
-            setLoading(false);
-        }, 1500);
-        return false;
-    };
-    
-    // Handles disbursement from the modal
-    const handleDisburseGroup = (groupName: string, generatedBatch: BulkBatchItem[]) => {
-        // Set the batch data to the generated group batch
-        setBatchData(generatedBatch);
-        setCurrentStep(1); // Move to review step
-
-        // Automatically start disbursement after a short delay (for flow continuity)
-        setTimeout(() => {
-             message.info(`Auto-starting disbursement for ${groupName}...`);
-             handleDisburseBatch();
-        }, 500);
-    };
-
-    const handleDisburseBatch = () => {
-        if (readyToDisburseCount === 0) {
-            message.warning('No valid loans ready for disbursement.');
-            return;
+  const columns: ColumnsType<Loan> = [
+    {
+      title: 'Customer Name',
+      dataIndex: 'customerName',
+      key: 'customerName',
+    },
+    {
+      title: 'Group',
+      dataIndex: 'groupName',
+      key: 'groupName',
+    },
+    {
+      title: 'Loan Type',
+      dataIndex: 'type',
+      key: 'type',
+    },
+    {
+      title: 'Total Amount',
+      key: 'totalLoan',
+      align: 'right',
+      render: (_, record) => formatCurrency(record.principalAmount + record.interestAmount),
+    },
+    {
+      title: 'Duration',
+      dataIndex: 'durationMonths',
+      key: 'durationMonths',
+      render: (months) => `${months} Months`,
+    },
+    {
+      title: 'Balance',
+      dataIndex: 'balance',
+      key: 'balance',
+      align: 'right',
+      render: (balance) => formatCurrency(balance),
+    },
+    {
+      title: 'Next Payment',
+      dataIndex: 'nextPaymentDate',
+      key: 'nextPaymentDate',
+    },
+    {
+      title: 'Items',
+      dataIndex: 'loanItems',
+      key: 'loanItems',
+      render: (items: LoanItem[]) =>
+        items?.length > 0
+          ? items.map((item) => `${item.productName} (${item.quantity})`).join(', ')
+          : '--',
+    },
+    {
+      title: 'Status',
+      dataIndex: 'status',
+      key: 'status',
+      render: (status: string) => {
+        const config = {
+          ACTIVE: { color: 'blue', icon: <CheckCircleOutlined /> },
+          PENDING: { color: 'orange', icon: <ClockCircleOutlined /> },
+          APPROVED: { color: 'green', icon: <CheckCircleOutlined /> },
+          REJECTED: { color: 'red', icon: <CloseCircleOutlined /> },
+          REPAID: { color: 'cyan', icon: <CheckCircleOutlined /> },
+          DUE: { color: 'volcano', icon: <ClockCircleOutlined /> },
+        };
+        const { color, icon } = config[status as keyof typeof config] || { color: 'default', icon: null };
+        return (
+          <Tag color={color} icon={icon}>
+            {status}
+          </Tag>
+        );
+      },
+    },
+    {
+      title: 'Actions',
+      key: 'actions',
+      render: (_, record: Loan) => {
+        const isPendingOrRejected = record.status === 'PENDING' || record.status === 'REJECTED';
+        
+        if (isPendingOrRejected && !isAdmin) {
+          return null;
         }
 
-        setLoading(true);
-        message.loading(`Initiating bulk disbursement for ${readyToDisburseCount} loans...`, 2);
-
-        setTimeout(() => {
-            setBatchData(prevData => prevData.map(item => {
-                if (item.validationStatus === 'Valid' && item.disbursementStatus === 'Pending') {
-                    const isSuccess = Math.random() > 0.1; 
-                    return {
-                        ...item,
-                        disbursementStatus: isSuccess ? 'Success' as const : 'Failed' as const,
-                        disbursedAmount: isSuccess ? item.requestedAmount : 0,
-                    };
-                }
-                return item;
-            }));
-
-            setCurrentStep(2); 
-            setLoading(false);
-            message.success(`Disbursement batch complete. ${successCount} loans disbursed successfully.`);
-        }, 3000);
-    };
-
-    const handleNewBatch = () => {
-        setBatchData([]);
-        setCurrentStep(0);
-        message.info('Ready for new batch upload.');
-    };
-
-    // --- Table Configuration (Unchanged) ---
-    const columns = [
-        { title: 'Client ID', dataIndex: 'clientId', key: 'clientId', width: 100 },
-        { title: 'Client Name', dataIndex: 'clientName', key: 'clientName' },
-        { 
-            title: 'Req. Amount', 
-            dataIndex: 'requestedAmount', 
-            key: 'requestedAmount',
-            align: 'right' as const,
-            render: (amount: number) => formatCurrency(amount)
-        },
-        { 
-            title: 'Validation Status', 
-            dataIndex: 'validationStatus', 
-            key: 'validationStatus',
-            align: 'center' as const,
-            render: (status: BulkBatchItem['validationStatus'], record: BulkBatchItem) => {
-                if (status === 'Invalid') {
-                    return <Tag color="error" title={record.validationError}><CloseCircleOutlined /> Invalid</Tag>;
-                } else if (status === 'Valid') {
-                    return <Tag color="success"><CheckCircleOutlined /> Valid</Tag>;
-                }
-                return <Tag>{status}</Tag>;
-            }
-        },
-        { 
-            title: 'Disbursement Status', 
-            dataIndex: 'disbursementStatus', 
-            key: 'disbursementStatus',
-            align: 'center' as const,
-            render: (status: BulkBatchItem['disbursementStatus']) => {
-                switch (status) {
-                    case 'Success': return <Tag color="blue"><DollarCircleOutlined /> Success</Tag>;
-                    case 'Failed': return <Tag color="red"><CloseCircleOutlined /> Failed</Tag>;
-                    default: return <Tag color="default">Pending</Tag>;
-                }
-            }
-        },
-        { 
-            title: 'Disbursed Amount', 
-            dataIndex: 'disbursedAmount', 
-            key: 'disbursedAmount',
-            align: 'right' as const,
-            render: (amount: number | undefined) => amount ? formatCurrency(amount) : '-'
-        },
-    ];
-
-    // --- Render ---
-
-    return (
-        <div>
-            <PageHeader 
-                title="Loans" 
-                breadcrumbs={[
-                    { title: 'Loans' }
-                ]} 
-            />
-            
-            <div className="page-container p-4 min-h-screen bg-gray-50">
-                <Title level={2} className="text-gray-800">
-                    <LineChartOutlined style={{ marginRight: 10 }} /> Bulk Loan Disbursement
-                </Title>
-                <Text type="secondary">
-                    Process multiple loans either by **File Upload** or **Direct Group Disbursement**.
-                </Text>
-
-            {/* --- Action Buttons --- */}
-            <Row gutter={16} className="mt-4 mb-6">
-                <Col xs={24} md={6}>
-                    <Button 
-                        type="primary" 
-                        icon={<TeamOutlined />} 
-                        onClick={() => setIsModalVisible(true)}
-                        disabled={currentStep !== 0}
-                        block
-                    >
-                        Disburse by Group
-                    </Button>
-                </Col>
-            </Row>
-
-            {/* --- Process Flow Cards --- */}
-            <Row gutter={24} className="mt-6">
-                <Col xs={24} lg={8}>
-                    <Card 
-                        title={<Text strong>1. Upload File</Text>} 
-                        className={`shadow-md ${currentStep === 0 ? 'border-2 border-blue-500' : 'border-gray-200'}`}
-                    >
-                        <Space direction="vertical" style={{ width: '100%' }}>
-                            <Upload 
-                                beforeUpload={handleFileUpload} 
-                                accept=".csv,.xlsx" 
-                                maxCount={1}
-                                showUploadList={currentStep === 0}
-                            >
-                                <Button 
-                                    icon={<UploadOutlined />} 
-                                    loading={loading} 
-                                    disabled={currentStep !== 0}
-                                    block
-                                >
-                                    Select Batch File (CSV/XLSX)
-                                </Button>
-                            </Upload>
-                            
-                            <Button 
-                                icon={<DownloadOutlined />} 
-                                onClick={handleDownloadTemplate} 
-                                disabled={loading}
-                                block
-                            >
-                                Download CSV Template
-                            </Button>
-                        </Space>
-                    </Card>
-                </Col>
-                
-                <Col xs={24} lg={8}>
-                    <Card 
-                        title={<Text strong>2. Review & Disburse</Text>}
-                        className={`shadow-md ${currentStep === 1 ? 'border-2 border-blue-500' : 'border-gray-200'}`}
-                    >
-                        <Statistic 
-                            title="Valid Loans Ready" 
-                            value={readyToDisburseCount} 
-                            valueStyle={{ color: '#52c41a' }}
-                            suffix={`/ ${totalCount}`}
-                        />
-                        <Button 
-                            type="primary" 
-                            icon={<SendOutlined />} 
-                            onClick={handleDisburseBatch} 
-                            loading={loading}
-                            disabled={currentStep !== 1 || readyToDisburseCount === 0}
-                            block
-                            className="mt-4"
-                        >
-                            Execute Disbursement
-                        </Button>
-                    </Card>
-                </Col>
-
-                <Col xs={24} lg={8}>
-                    <Card 
-                        title={<Text strong>3. Final Status</Text>}
-                        className={`shadow-md ${currentStep === 2 ? 'border-2 border-green-500' : 'border-gray-200'}`}
-                    >
-                        <Statistic 
-                            title="Total Disbursed Value" 
-                            value={totalDisbursementAmount}
-                            prefix={CURRENCY}
-                            precision={2}
-                            valueStyle={{ color: '#1890ff' }}
-                        />
-                        <Button 
-                            type="default" 
-                            icon={<FileExcelOutlined />} 
-                            onClick={handleNewBatch}
-                            disabled={currentStep === 0}
-                            block
-                            className="mt-4"
-                        >
-                            Start New Batch
-                        </Button>
-                    </Card>
-                </Col>
-            </Row>
-
-            {/* --- Batch Results Table --- */}
-            {batchData.length > 0 && (
-                <Card title={<Title level={4} className="mt-4">Batch Processing Results ({totalCount} items)</Title>} className="shadow-lg mt-6">
-                    <Table
-                        columns={columns}
-                        dataSource={batchData}
-                        rowKey="clientId"
-                        pagination={{ pageSize: 5 }}
-                        size="middle"
-                        bordered
-                    />
-                </Card>
+        return (
+          <div style={{ display: 'flex', gap: 8 }}>
+            {record.balance > 0 && (record.status === 'ACTIVE' || record.status === 'DUE') && isAdmin && (
+              <Tooltip title="Add Payment">
+                <Button
+                  type="link"
+                  icon={<PlusCircleOutlined />}
+                  onClick={() => handleAddPayment(record)}
+                />
+              </Tooltip>
             )}
-
-            {batchData.length === 0 && currentStep === 0 && (
-                 <Card style={{ marginTop: 20 }} className="text-center p-8 border-dashed border-2 border-gray-300">
-                    <FileExcelOutlined style={{ fontSize: '48px', color: '#ccc' }} />
-                    <Title level={4} type="secondary" className="mt-2">Select an action above to begin processing.</Title>
-                    <Text type="secondary">Choose between bulk file upload or direct group disbursement.</Text>
-                </Card>
+            {isAdmin && (
+              <Tooltip title="Edit Status">
+                <Button
+                  type="link"
+                  icon={<EditOutlined />}
+                  onClick={() => handleEditStatus(record)}
+                />
+              </Tooltip>
             )}
+            <Tooltip title="View Loan">
+              <Button
+                type="link"
+                icon={<EyeOutlined />}
+                onClick={() => handleView(record)}
+              />
+            </Tooltip>
+          </div>
+        );
+      },
+    },
+  ];
 
-            <DisburseByGroupModal
-                visible={isModalVisible}
-                onClose={() => setIsModalVisible(false)}
-                onDisburse={handleDisburseGroup}
-                setLoading={setLoading}
-            />            </div>        </div>
-    );
+  const tabs = [
+    { key: 'all', label: 'All', color: 'default' },
+    { key: 'ACTIVE', label: 'Active', color: 'blue' },
+    { key: 'PENDING', label: 'Pending', color: 'orange' },
+    { key: 'REJECTED', label: 'Rejected', color: 'red' },
+  ];
+
+  return (
+    <div>
+      <PageHeader 
+        title="Loans" 
+        breadcrumbs={[
+          { title: 'Home', path: '/' },
+          { title: 'Bulk Actions', path: '#' },
+          { title: 'Loans' }
+        ]} 
+      />
+
+      <PageCard>
+        {/* Tabs */}
+        <div style={{ marginBottom: 16, display: 'flex', gap: 8 }}>
+          {tabs.map((tab) => (
+            <Tag
+              key={tab.key}
+              color={activeTab === tab.key ? tab.color : 'default'}
+              style={{ cursor: 'pointer', fontSize: 14, padding: '4px 12px' }}
+              onClick={() => {
+                setActiveTab(tab.key as any);
+                setRefreshKey(prev => prev + 1);
+              }}
+            >
+              {tab.label}
+            </Tag>
+          ))}
+        </div>
+
+        <DataTable
+          key={`${refreshKey}-${activeTab}`}
+          apiUrl={getApiUrl()}
+          columns={columns}
+          searchPlaceholder="Search loans..."
+        />
+      </PageCard>
+
+      {/* Add Payment Drawer */}
+      <FormDrawer
+        title={`Add Payment for ${selectedLoan?.customerName}`}
+        open={paymentModalOpen}
+        onClose={() => {
+          setPaymentModalOpen(false);
+          paymentForm.resetFields();
+        }}
+        onSubmit={handlePayment}
+        loading={submitLoading}
+        form={paymentForm}
+      >
+        <Form.Item
+          name="amount"
+          label="Payment Amount"
+          rules={[
+            { required: true, message: 'Amount is required' },
+            { type: 'number', min: 0, message: 'Amount must be positive' },
+          ]}
+        >
+          <InputNumber
+            style={{ width: '100%' }}
+            prefix="Ksh"
+            placeholder="Enter payment amount"
+          />
+        </Form.Item>
+        {selectedLoan && (
+          <div style={{ marginTop: 16, padding: 12, backgroundColor: '#f5f5f5', borderRadius: 4 }}>
+            <div>Outstanding Balance: <strong>{formatCurrency(selectedLoan.balance)}</strong></div>
+          </div>
+        )}
+      </FormDrawer>
+
+      {/* Edit Status Drawer */}
+      <FormDrawer
+        title={`Edit Status for ${selectedLoan?.customerName}`}
+        open={statusModalOpen}
+        onClose={() => {
+          setStatusModalOpen(false);
+          statusForm.resetFields();
+        }}
+        onSubmit={handleStatusUpdate}
+        loading={submitLoading}
+        form={statusForm}
+      >
+        <Form.Item
+          name="status"
+          label="Loan Status"
+          rules={[{ required: true, message: 'Status is required' }]}
+        >
+          <select style={{ width: '100%', padding: 8, borderRadius: 4, border: '1px solid #d9d9d9' }}>
+            <option value="">-- Choose Option --</option>
+            <option value="PENDING">Pending</option>
+            <option value="APPROVED">Approved</option>
+            <option value="ACTIVE">Active</option>
+            <option value="REJECTED">Rejected</option>
+            <option value="REPAID">Repaid</option>
+            <option value="DUE">Due</option>
+          </select>
+        </Form.Item>
+      </FormDrawer>
+
+      {/* View Loan Modal */}
+      <Modal
+        title={`Loan Details - ${selectedLoan?.customerName}`}
+        open={viewModalOpen}
+        onCancel={() => setViewModalOpen(false)}
+        footer={null}
+        width={700}
+      >
+        {selectedLoan && (
+          <div style={{ display: 'grid', gap: 16 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+              <div>
+                <div style={{ color: '#666', fontSize: 12 }}>Customer</div>
+                <div style={{ fontWeight: 500 }}>{selectedLoan.customerName}</div>
+              </div>
+              <div>
+                <div style={{ color: '#666', fontSize: 12 }}>Group</div>
+                <div style={{ fontWeight: 500 }}>{selectedLoan.groupName}</div>
+              </div>
+              <div>
+                <div style={{ color: '#666', fontSize: 12 }}>Principal Amount</div>
+                <div style={{ fontWeight: 500 }}>{formatCurrency(selectedLoan.principalAmount)}</div>
+              </div>
+              <div>
+                <div style={{ color: '#666', fontSize: 12 }}>Interest Amount</div>
+                <div style={{ fontWeight: 500 }}>{formatCurrency(selectedLoan.interestAmount)}</div>
+              </div>
+              <div>
+                <div style={{ color: '#666', fontSize: 12 }}>Total Loan</div>
+                <div style={{ fontWeight: 500 }}>{formatCurrency(selectedLoan.principalAmount + selectedLoan.interestAmount)}</div>
+              </div>
+              <div>
+                <div style={{ color: '#666', fontSize: 12 }}>Balance</div>
+                <div style={{ fontWeight: 500, color: '#cf1322' }}>{formatCurrency(selectedLoan.balance)}</div>
+              </div>
+              <div>
+                <div style={{ color: '#666', fontSize: 12 }}>Duration</div>
+                <div style={{ fontWeight: 500 }}>{selectedLoan.durationMonths} Months</div>
+              </div>
+              <div>
+                <div style={{ color: '#666', fontSize: 12 }}>Status</div>
+                <Tag color={selectedLoan.status === 'ACTIVE' ? 'blue' : 'default'}>{selectedLoan.status}</Tag>
+              </div>
+            </div>
+            {selectedLoan.loanItems && selectedLoan.loanItems.length > 0 && (
+              <div>
+                <div style={{ color: '#666', fontSize: 12, marginBottom: 8 }}>Loan Items</div>
+                <ul style={{ paddingLeft: 20 }}>
+                  {selectedLoan.loanItems.map((item, index) => (
+                    <li key={index}>{item.productName} - Qty: {item.quantity}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </div>
+        )}
+      </Modal>
+    </div>
+  );
 };
 
-export default BulkLoanDisbursementModule;
+export default Loans;

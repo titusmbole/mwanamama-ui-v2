@@ -1,297 +1,270 @@
-import React, { useState, useMemo } from 'react';
-import { 
-    Typography, Card, Table, Tag, Row, Col, Button, Modal, Form, Select, Input, message
-} from 'antd';
-import { 
-    LockOutlined, ExclamationCircleOutlined,CheckCircleOutlined, SwapOutlined, SearchOutlined
-} from '@ant-design/icons';
+import React, { useState, useEffect } from 'react';
+import { Button, Table, Tag, Modal, Form, Select, message, Input } from 'antd';
+import type { ColumnsType } from 'antd/es/table';
+import { ReloadOutlined, RetweetOutlined } from '@ant-design/icons';
 import PageHeader from '../../components/common/Layout/PageHeader';
+import PageCard from '../../components/common/PageCard/PageCard';
+import { APIS } from '../../services/APIS';
+import http from '../../services/httpInterceptor';
 
-const { Title, Text } = Typography;
-const { Option } = Select;
-
-const CURRENCY = 'Ksh';
-
-// ----------------------------------------------------
-// 1. DATA STRUCTURES & MOCK DATA
-// ----------------------------------------------------
-
-// Data structure for an unmatched or misdirected payment
-interface SuspensePayment {
-    id: number;
-    amount: number;
-    date: string;
-    sourceDetails: string; // Phone number or Paybill Ref used
-    errorReason: string; // Why it failed automated matching
-    status: 'Pending Verification' | 'Reassigned' | 'Reversed';
-    suspenseRef: string;
+interface MpesaTransaction {
+  id: number;
+  billRefNumber: string;
+  payer: string;
+  transID: string;
+  transAmount: number;
+  transTime: string;
+  transactionType: string;
+  status: string;
 }
 
-// Simplified Group list for reassignment purposes (must match groups in previous context)
-const mockGroups = [
-    { id: 101, groupName: 'Truetana Investment Group', loanAccountNumber: 'LN001A' },
-    { id: 102, groupName: 'Unity Sacco', loanAccountNumber: 'LN003C' },
-    { id: 103, groupName: 'Unmatched Group Account', loanAccountNumber: 'N/A' },
-];
-
-
-const initialSuspensePayments: SuspensePayment[] = [
-    {
-        id: 201,
-        amount: 4000.00,
-        date: '2025-11-23',
-        sourceDetails: '0712****** (Ref: GHY78E)',
-        errorReason: 'Group Account Number Mismatch (Paid to non-existent group ID)',
-        status: 'Pending Verification',
-        suspenseRef: 'SPN201',
-    },
-    {
-        id: 202,
-        amount: 1500.00,
-        date: '2025-11-22',
-        sourceDetails: '0723****** (Ref: KJ89W1)',
-        errorReason: 'Payment Reference Code Missing/Invalid',
-        status: 'Pending Verification',
-        suspenseRef: 'SPN202',
-    },
-    {
-        id: 203,
-        amount: 8000.00,
-        date: '2025-11-21',
-        sourceDetails: '0700****** (Ref: AB12C3)',
-        errorReason: 'Reassigned (Original: Paid to Group 103 instead of 101)',
-        status: 'Reassigned',
-        suspenseRef: 'SPN203',
-    },
-];
-
-// ----------------------------------------------------
-// 2. HELPER FUNCTIONS
-// ----------------------------------------------------
-
-const formatCurrency = (amount: number) => {
-    return `${CURRENCY} ${amount.toLocaleString('en-US', { minimumFractionDigits: 2 })}`;
-};
-
-const getStatusTag = (status: SuspensePayment['status']) => {
-    switch (status) {
-        case 'Pending Verification': return <Tag color="warning" icon={<ExclamationCircleOutlined />}>{status}</Tag>;
-        case 'Reassigned': return <Tag color="success" icon={<CheckCircleOutlined />}>{status}</Tag>;
-        case 'Reversed': return <Tag color="error" icon={<LockOutlined />}>{status}</Tag>;
-        default: return <Tag>{status}</Tag>;
-    }
-};
-
-// ----------------------------------------------------
-// 3. REASSIGNMENT MODAL
-// ----------------------------------------------------
-
-interface ReassignmentModalProps {
-    visible: boolean;
-    onClose: () => void;
-    payment: SuspensePayment | null;
-    onReassign: (paymentId: number, targetGroupName: string) => void;
+interface Group {
+  id: number;
+  groupName: string;
+  groupNumber: string;
 }
 
-const ReassignmentModal: React.FC<ReassignmentModalProps> = ({ visible, onClose, payment, onReassign }) => {
-    const [form] = Form.useForm();
+const SuspendedAccounts: React.FC = () => {
+  const [data, setData] = useState<MpesaTransaction[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [pagination, setPagination] = useState({ current: 1, pageSize: 10, total: 0 });
+  const [searchText, setSearchText] = useState('');
+  const [reallocateModalOpen, setReallocateModalOpen] = useState(false);
+  const [selectedTransaction, setSelectedTransaction] = useState<MpesaTransaction | null>(null);
+  const [groups, setGroups] = useState<Group[]>([]);
+  const [submitting, setSubmitting] = useState(false);
+  const [form] = Form.useForm();
 
-    const handleOk = () => {
-        form.validateFields().then(values => {
-            if (payment) {
-                onReassign(payment.id, values.targetGroup);
-                onClose();
-            }
+  useEffect(() => {
+    loadData();
+    loadGroups();
+  }, []);
+
+  const loadData = async (page = 1, pageSize = 10, search = '') => {
+    try {
+      setLoading(true);
+      const params: any = {
+        page,
+        size: pageSize,
+        status: 'PENDING',
+      };
+      if (search) params.search = search;
+
+      const response = await http.get(APIS.ALL_PAYMENTS, { params });
+      
+      if (response.data.content) {
+        setData(response.data.content);
+        setPagination({
+          current: page,
+          pageSize,
+          total: response.data.totalElements || 0,
         });
-    };
+      } else {
+        setData(response.data);
+        setPagination({ current: 1, pageSize: 10, total: response.data.length });
+      }
+    } catch (error: any) {
+      message.error(error.response?.data?.message || 'Failed to load suspended payments');
+    } finally {
+      setLoading(false);
+    }
+  };
 
-    if (!payment) return null;
+  const loadGroups = async () => {
+    try {
+      const response = await http.get(APIS.LOAD_GROUPS_UNPAGINATED);
+      setGroups(response.data);
+    } catch (error: any) {
+      message.error('Failed to load groups');
+    }
+  };
 
-    return (
-        <Modal
-            title={<Title level={4}><SwapOutlined /> Reassign Suspense Payment</Title>}
-            open={visible}
-            onOk={handleOk}
-            onCancel={onClose}
-            okText="Confirm Reassignment"
-            cancelText="Cancel"
+  const handleTableChange = (newPagination: any) => {
+    loadData(newPagination.current, newPagination.pageSize, searchText);
+  };
+
+  const handleSearch = (value: string) => {
+    setSearchText(value);
+    loadData(1, pagination.pageSize, value);
+  };
+
+  const handleReallocate = (transaction: MpesaTransaction) => {
+    setSelectedTransaction(transaction);
+    form.resetFields();
+    setReallocateModalOpen(true);
+  };
+
+  const handleReallocateSubmit = async (values: any) => {
+    if (!selectedTransaction) return;
+
+    setSubmitting(true);
+    try {
+      await http.put(APIS.ALLOCATE_PAYMENT, {
+        paymentId: selectedTransaction.id,
+        groupNumber: values.groupNumber,
+      });
+      message.success('Payment reallocated successfully!');
+      setReallocateModalOpen(false);
+      loadData(pagination.current, pagination.pageSize, searchText);
+    } catch (error: any) {
+      message.error(error.response?.data?.message || 'Failed to reallocate payment');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const formatCurrency = (amount: number) => {
+    return `Ksh ${amount.toLocaleString('en-US', { minimumFractionDigits: 2 })}`;
+  };
+
+  const capitalizeWords = (str: string) => {
+    return str
+      .split(' ')
+      .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+      .join(' ');
+  };
+
+  const columns: ColumnsType<MpesaTransaction> = [
+    {
+      title: 'Group ID',
+      dataIndex: 'billRefNumber',
+      key: 'billRefNumber',
+    },
+    {
+      title: 'Payer',
+      dataIndex: 'payer',
+      key: 'payer',
+      render: (text) => capitalizeWords(text),
+    },
+    {
+      title: 'Mpesa Code',
+      dataIndex: 'transID',
+      key: 'transID',
+    },
+    {
+      title: 'Amount',
+      dataIndex: 'transAmount',
+      key: 'transAmount',
+      align: 'right',
+      render: (amount) => formatCurrency(amount),
+    },
+    {
+      title: 'Transaction Date',
+      dataIndex: 'transTime',
+      key: 'transTime',
+    },
+    {
+      title: 'Type',
+      dataIndex: 'transactionType',
+      key: 'transactionType',
+    },
+    {
+      title: 'Payment Status',
+      dataIndex: 'status',
+      key: 'status',
+      render: (status) => (
+        <Tag color={status === 'PENDING' ? 'orange' : 'default'}>{status}</Tag>
+      ),
+    },
+    {
+      title: 'Action',
+      key: 'action',
+      render: (_, record) => (
+        <Button
+          type="default"
+          icon={<RetweetOutlined />}
+          onClick={() => handleReallocate(record)}
         >
-            <p className="mb-4">
-                You are about to reassign a suspense payment of **{formatCurrency(payment.amount)}** to the correct Group DDA.
-            </p>
-            <Card size="small" className="bg-red-50 mb-4">
-                <Text strong type="danger">Suspense Ref:</Text> {payment.suspenseRef} | 
-                <Text strong type="danger" className="ml-3">Reason:</Text> {payment.errorReason}
-            </Card>
+          Reallocate
+        </Button>
+      ),
+    },
+  ];
 
-            <Form form={form} layout="vertical" initialValues={{ targetGroup: '' }}>
-                <Form.Item
-                    name="targetGroup"
-                    label="Target Group Account"
-                    rules={[{ required: true, message: 'Please select the correct group account' }]}
-                >
-                    <Select showSearch placeholder="Select the verified correct destination group">
-                        {mockGroups.map(g => (
-                            <Option key={g.id} value={g.groupName}>
-                                {g.groupName} (Loan: {g.loanAccountNumber})
-                            </Option>
-                        ))}
-                    </Select>
-                </Form.Item>
-                <Form.Item
-                    name="verificationNotes"
-                    label="Verification Notes"
-                    rules={[{ required: true, message: 'Please enter verification details' }]}
-                >
-                    <Input.TextArea rows={2} placeholder="e.g., Confirmed via call with client 0712*** that payment was intended for Truetana." />
-                </Form.Item>
-            </Form>
-        </Modal>
-    );
-};
+  return (
+    <div>
+      <PageHeader 
+        title="Suspended Payments" 
+        breadcrumbs={[
+          { title: 'Home', path: '/' },
+          { title: 'Payments', path: '#' },
+          { title: 'Suspended Accounts' }
+        ]} 
+      />
 
-// ----------------------------------------------------
-// 4. MAIN COMPONENT (Payments Suspense Register)
-// ----------------------------------------------------
+      <PageCard
+        extra={
+          <Button
+            icon={<ReloadOutlined />}
+            onClick={() => loadData(pagination.current, pagination.pageSize, searchText)}
+          >
+            Refresh
+          </Button>
+        }
+      >
+        <Input.Search
+          placeholder="Search suspended payments..."
+          onSearch={handleSearch}
+          onChange={(e) => e.target.value === '' && handleSearch('')}
+          style={{ marginBottom: 16, maxWidth: 400 }}
+          allowClear
+        />
 
-const PaymentsSuspenseRegister: React.FC = () => {
-    const [suspensePayments, setSuspensePayments] = useState<SuspensePayment[]>(initialSuspensePayments);
-    const [isModalVisible, setIsModalVisible] = useState(false);
-    const [selectedPayment, setSelectedPayment] = useState<SuspensePayment | null>(null);
+        <Table
+          columns={columns}
+          dataSource={data}
+          rowKey="id"
+          loading={loading}
+          pagination={pagination}
+          onChange={handleTableChange}
+          scroll={{ x: 1000 }}
+        />
+      </PageCard>
 
-    const handleReassign = (paymentId: number, targetGroupName: string) => {
-        setSuspensePayments(prev => 
-            prev.map(p => 
-                p.id === paymentId
-                    ? { 
-                        ...p, 
-                        status: 'Reassigned' as const, 
-                        errorReason: `Reassigned to ${targetGroupName}. Original reason: ${p.errorReason}` 
-                      }
-                    : p
-            )
-        );
-        message.success(`Payment ${paymentId} successfully reassigned to ${targetGroupName}.`);
-        // In a real system, you would call an API here to move the funds and update the Loan DDA.
-    };
-
-    const openReassignment = (payment: SuspensePayment) => {
-        setSelectedPayment(payment);
-        setIsModalVisible(true);
-    };
-
-    const columns = [
-        {
-            title: 'Ref',
-            dataIndex: 'suspenseRef',
-            key: 'suspenseRef',
-            width: 100,
-            render: (text: string) => <Tag color="red">{text}</Tag>,
-        },
-        {
-            title: 'Amount',
-            dataIndex: 'amount',
-            key: 'amount',
-            align: 'right' as const,
-            render: (amount: number) => <Text strong>{formatCurrency(amount)}</Text>,
-        },
-        {
-            title: 'Error Reason',
-            dataIndex: 'errorReason',
-            key: 'errorReason',
-            render: (text: string) => <Text type="danger" className="text-sm">{text}</Text>,
-        },
-        {
-            title: 'Source Details',
-            dataIndex: 'sourceDetails',
-            key: 'sourceDetails',
-            width: 150,
-        },
-        {
-            title: 'Date',
-            dataIndex: 'date',
-            key: 'date',
-            width: 100,
-        },
-        {
-            title: 'Status',
-            dataIndex: 'status',
-            key: 'status',
-            align: 'center' as const,
-            render: getStatusTag,
-        },
-        {
-            title: 'Action',
-            key: 'action',
-            width: 120,
-            align: 'center' as const,
-            render: (_: any, record: SuspensePayment) => (
-                <Button 
-                    icon={<SwapOutlined />} 
-                    type="primary" 
-                    size="small"
-                    onClick={() => openReassignment(record)}
-                    disabled={record.status !== 'Pending Verification'}
-                >
-                    Reassign
-                </Button>
-            ),
-        },
-    ];
-
-    const pendingCount = useMemo(() => 
-        suspensePayments.filter(p => p.status === 'Pending Verification').length, 
-        [suspensePayments]
-    );
-
-    return (
-        <div>
-            <PageHeader 
-                title="Suspended Accounts" 
-                breadcrumbs={[
-                    { title: 'Suspended Accounts' }
-                ]} 
-            />
-            
-            <div className="page-container p-4 min-h-screen bg-gray-50">
-                
-                <Title level={2} className="text-gray-800">
-                    <LockOutlined style={{ marginRight: 10 }} /> Payments Suspense Register
-                </Title>
-                <Text type="secondary">
-                    This log tracks payments that failed automatic allocation due to **wrong account numbers or missing references**. Payments must be manually verified and reassigned.
-                </Text>
-
-            <Card style={{ marginTop: 20 }} className="shadow-lg">
-                <Row gutter={16} className="mb-4" align="middle">
-                    <Col>
-                         <Title level={4} className="mb-0">Unmatched Payments List</Title>
-                    </Col>
-                    <Col>
-                        <Tag color="volcano" icon={<ExclamationCircleOutlined />} style={{ padding: '8px 12px', fontSize: '14px' }}>
-                            {pendingCount} Payments Pending Verification
-                        </Tag>
-                    </Col>
-                </Row>
-                <Table
-                    columns={columns}
-                    dataSource={suspensePayments}
-                    rowKey="id"
-                    pagination={{ pageSize: 5 }}
-                    size="middle"
-                    bordered
-                />
-            </Card>
-
-            <ReassignmentModal
-                visible={isModalVisible}
-                onClose={() => setIsModalVisible(false)}
-                payment={selectedPayment}
-                onReassign={handleReassign}
-            />
+      {/* Reallocate Modal */}
+      <Modal
+        title="Reallocate Payment"
+        open={reallocateModalOpen}
+        onCancel={() => {
+          setReallocateModalOpen(false);
+          form.resetFields();
+        }}
+        onOk={() => form.submit()}
+        confirmLoading={submitting}
+      >
+        {selectedTransaction && (
+          <div style={{ marginBottom: 16, padding: 12, backgroundColor: '#fff7e6', borderRadius: 4, border: '1px solid #ffd591' }}>
+            <div><strong>Payer:</strong> {capitalizeWords(selectedTransaction.payer)}</div>
+            <div><strong>Amount:</strong> {formatCurrency(selectedTransaction.transAmount)}</div>
+            <div><strong>M-Pesa Code:</strong> {selectedTransaction.transID}</div>
+            <div style={{ marginTop: 8, color: '#d46b08' }}>
+              <strong>Status:</strong> This payment is suspended and needs to be allocated to the correct group.
             </div>
-        </div>
-    );
+          </div>
+        )}
+
+        <Form form={form} layout="vertical" onFinish={handleReallocateSubmit}>
+          <Form.Item
+            name="groupNumber"
+            label="Select Group"
+            rules={[{ required: true, message: 'Please select a group' }]}
+          >
+            <Select
+              showSearch
+              placeholder="Select group to allocate payment"
+              filterOption={(input, option) =>
+                (option?.label ?? '').toLowerCase().includes(input.toLowerCase())
+              }
+              options={groups.map(group => ({
+                label: `${group.groupName} (${group.groupNumber})`,
+                value: group.groupNumber,
+              }))}
+            />
+          </Form.Item>
+        </Form>
+      </Modal>
+    </div>
+  );
 };
 
-export default PaymentsSuspenseRegister;
+export default SuspendedAccounts;

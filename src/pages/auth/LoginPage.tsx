@@ -1,8 +1,10 @@
 import React, { useState, useCallback } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
-import { Row, Col, Card, Form, Input, Button, Typography, notification, Divider, Space } from "antd";
-import { LockOutlined, UserOutlined, GoogleOutlined, GithubOutlined } from "@ant-design/icons";
+import { Row, Col, Card, Form, Input, Button, Typography, notification, Checkbox } from "antd";
+import { LockOutlined, UserOutlined } from "@ant-design/icons";
+import http from "../../services/httpInterceptor";
+import { APIS } from "../../services/APIS";
 
 const { Title, Text } = Typography;
 
@@ -11,47 +13,35 @@ const LoginPage: React.FC = () => {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
   const [api, contextHolder] = notification.useNotification();
+  const [form] = Form.useForm();
 
-  const handleLogin = useCallback((values: any) => {
+  const handleLogin = useCallback(async (values: any) => {
     const { username, password } = values;
 
-    if (!username || !password) {
-      api.warning({
-        message: "Missing Information",
-        description: "Please enter both username and password.",
+    setLoading(true);
+    try {
+      const response = await http.post(APIS.LOGIN, { username, password });
+      const token = response.data.token;
+      
+      login(token);
+      
+      api.success({
+        message: "Login Successful!",
+        description: `Welcome back, ${username}!`,
         placement: "topRight",
       });
-      return;
-    }
-
-    setLoading(true);
-    setTimeout(() => {
-      if (username === "admin" && password === "12345") {
-        login(username);
-        api.success({
-          message: "Login Successful!",
-          description: `Welcome back, ${username}!`,
-          placement: "topRight",
-        });
-        navigate("/dashboard");
-      } else {
-        api.error({
-          message: "Login Failed",
-          description: "Invalid username or password. Please try again.",
-          placement: "topRight",
-        });
-      }
+      
+      setTimeout(() => navigate("/dashboard"), 500);
+    } catch (error: any) {
+      api.error({
+        message: "Login Failed",
+        description: error.response?.data?.message || "Invalid credentials. Please try again.",
+        placement: "topRight",
+      });
+    } finally {
       setLoading(false);
-    }, 1000);
+    }
   }, [login, navigate, api]);
-
-  const handleSocialLogin = (provider: string) => {
-    api.info({
-      message: "Social Login",
-      description: `${provider} login is not yet configured.`,
-      placement: "topRight",
-    });
-  };
 
   return (
     <>
@@ -62,10 +52,15 @@ const LoginPage: React.FC = () => {
           <Card style={{ borderRadius: 16, padding: "32px" }} bordered={false}>
             <div style={{ textAlign: "center", marginBottom: 24 }}>
               <Title level={2}>Welcome Back</Title>
-              <Text type="secondary">Sign in to continue to your account</Text>
+              <Text type="secondary">Sign in to continue to Mwanamama</Text>
             </div>
 
-            <Form layout="vertical" onFinish={handleLogin}>
+            <Form 
+              form={form}
+              layout="vertical" 
+              onFinish={handleLogin}
+              initialValues={{ remember: true }}
+            >
               <Form.Item
                 name="username"
                 label="Username"
@@ -83,7 +78,10 @@ const LoginPage: React.FC = () => {
               </Form.Item>
 
               <Form.Item>
-                <div style={{ display: "flex", justifyContent: "flex-end" }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <Form.Item name="remember" valuePropName="checked" noStyle>
+                    <Checkbox>Keep me logged in</Checkbox>
+                  </Form.Item>
                   <Link to="/auth/forgot-password">Forgot Password?</Link>
                 </div>
               </Form.Item>

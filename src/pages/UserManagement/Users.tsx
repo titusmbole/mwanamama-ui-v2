@@ -1,216 +1,214 @@
-import React, { useState, useMemo } from 'react';
-import { 
-    Typography, Card, Row, Col, Table, Tag, Input, Select, Button, 
-    Descriptions, Divider, Space, Statistic
-} from 'antd';
-import { 
-    TeamOutlined, SearchOutlined, UserOutlined, MailOutlined, PhoneOutlined, 
-    HomeOutlined, CalendarOutlined, EyeOutlined, ArrowLeftOutlined, SolutionOutlined, CheckCircleOutlined, SyncOutlined
-} from '@ant-design/icons';
+import React, { useState, useEffect } from 'react';
+import { Button, Table, Modal, Form, Input, Select, message, Tag, Tooltip, Switch } from 'antd';
+import type { ColumnsType } from 'antd/es/table';
+import { PlusOutlined, EditOutlined, EyeOutlined, CheckCircleOutlined, CloseCircleOutlined, AppstoreAddOutlined } from '@ant-design/icons';
 import PageHeader from '../../components/common/Layout/PageHeader';
+import PageCard from '../../components/common/PageCard/PageCard';
+import { APIS } from '../../services/APIS';
+import http from '../../services/httpInterceptor';
 
-const { Title, Text } = Typography;
-const { Option } = Select;
-
-// ----------------------------------------------------
-// 1. DATA STRUCTURES & MOCK DATA
-// ----------------------------------------------------
-
-interface User {
-    id: number;
-    name: string;
-    email: string;
-    role: 'Admin' | 'Loan Officer' | 'Branch Manager' | 'System Auditor';
-    branch: string;
-    status: 'Active' | 'Suspended' | 'On Leave';
-    phoneNumber: string;
-    hireDate: string; // YYYY-MM-DD
-    loanPortfolioValue?: number; // For L.O.s
+interface Role {
+  id: number;
+  roleName: string;
 }
 
-const mockUsers: User[] = [
-    { id: 101, name: 'Esther Kimani', email: 'esther.k@mfi.com', role: 'Loan Officer', branch: 'Central Market Hub', status: 'Active', phoneNumber: '0712 345 678', hireDate: '2023-01-15', loanPortfolioValue: 8500000 },
-    { id: 102, name: 'David Mwangi', email: 'david.m@mfi.com', role: 'Branch Manager', branch: 'East Side Business', status: 'Active', phoneNumber: '0722 987 654', hireDate: '2022-05-20', loanPortfolioValue: 0 },
-    { id: 103, name: 'Fatima Aden', email: 'fatima.a@mfi.com', role: 'Loan Officer', branch: 'West Field Outreach', status: 'Suspended', phoneNumber: '0733 112 233', hireDate: '2024-03-10', loanPortfolioValue: 4100000 },
-    { id: 104, name: 'Alex Johnson', email: 'alex.j@mfi.com', role: 'Admin', branch: 'Head Office', status: 'Active', phoneNumber: '0744 556 677', hireDate: '2021-11-01', loanPortfolioValue: 0 },
-    { id: 105, name: 'Ben Carter', email: 'ben.c@mfi.com', role: 'Loan Officer', branch: 'East Side Business', status: 'On Leave', phoneNumber: '0755 889 900', hireDate: '2023-08-22', loanPortfolioValue: 6200000 },
-    { id: 106, name: 'Charles Ndungu', email: 'charles.n@mfi.com', role: 'Loan Officer', branch: 'Central Market Hub', status: 'Active', phoneNumber: '0766 221 100', hireDate: '2024-01-05', loanPortfolioValue: 7900000 },
-    { id: 107, name: 'Grace Mwai', email: 'grace.m@mfi.com', role: 'System Auditor', branch: 'Head Office', status: 'Active', phoneNumber: '0777 889 911', hireDate: '2024-06-01', loanPortfolioValue: 0 },
-];
+interface Branch {
+  id: number;
+  branchName: string;
+  branchCode: string;
+}
 
-// Utility functions
-const formatCurrency = (amount: number | undefined) => amount ? `KSh ${amount.toLocaleString('en-KE')}` : 'N/A';
-
-const getStatusTagProps = (status: string) => {
-    switch (status) {
-        case 'Active': return { color: 'green', icon: <CheckCircleOutlined /> };
-        case 'Suspended': return { color: 'red', icon: <SyncOutlined spin /> };
-        case 'On Leave': return { color: 'blue', icon: <CalendarOutlined /> };
-        default: return { color: 'default', icon: null };
-    }
-};
-
-const getRoleTagColor = (role: string) => {
-    switch (role) {
-        case 'Admin': return 'volcano';
-        case 'Branch Manager': return 'purple';
-        case 'Loan Officer': return 'geekblue';
-        case 'System Auditor': return 'cyan';
-        default: return 'default';
-    }
-};
-
-// ----------------------------------------------------
-// 2. SUPPORT COMPONENT (Detail View)
-// ----------------------------------------------------
-
-const UserDetailView: React.FC<{ user: User, onBack: () => void }> = ({ user, onBack }) => {
-
-    return (
-        <div className="page-container p-4 min-h-screen bg-gray-50">
-            <Button 
-                onClick={onBack} 
-                icon={<ArrowLeftOutlined />} 
-                type="dashed"
-                className="mb-4"
-            >
-                Back to User List
-            </Button>
-            
-            <Title level={2} className="text-gray-800 flex items-center">
-                <UserOutlined style={{ marginRight: 8, color: getRoleTagColor(user.role) }} /> User Profile: {user.name}
-            </Title>
-            <Text type="secondary" className="block mb-4">
-                Employee ID: <Tag color="default">{user.id}</Tag> | Status: <Tag {...getStatusTagProps(user.status)}>{user.status}</Tag>
-            </Text>
-
-            <Row gutter={[16, 16]} className="mt-4">
-                {/* Section 1: Contact & Role */}
-                <Col xs={24} lg={8}>
-                    <Card title="Contact & Role Info" className="h-full border-t-4 border-blue-500 shadow-md">
-                        <Descriptions column={1} bordered size="small">
-                            <Descriptions.Item label="Full Name"><UserOutlined /> {user.name}</Descriptions.Item>
-                            <Descriptions.Item label="System Role">
-                                <Tag color={getRoleTagColor(user.role)} icon={<SolutionOutlined />}>{user.role}</Tag>
-                            </Descriptions.Item>
-                            <Descriptions.Item label="Phone"><PhoneOutlined /> {user.phoneNumber}</Descriptions.Item>
-                            <Descriptions.Item label="Email"><MailOutlined /> {user.email}</Descriptions.Item>
-                        </Descriptions>
-                    </Card>
-                </Col>
-
-                {/* Section 2: Employment Details */}
-                <Col xs={24} lg={8}>
-                    <Card title="Employment Details" className="h-full border-t-4 border-purple-500 shadow-md">
-                        <Descriptions column={1} bordered size="small">
-                            <Descriptions.Item label="Branch"><HomeOutlined /> {user.branch}</Descriptions.Item>
-                            <Descriptions.Item label="Hire Date"><CalendarOutlined /> {user.hireDate}</Descriptions.Item>
-                            <Descriptions.Item label="User Status">
-                                <Tag {...getStatusTagProps(user.status)}>{user.status}</Tag>
-                            </Descriptions.Item>
-                            <Descriptions.Item label="Last Activity">2025-11-20 14:30</Descriptions.Item>
-                        </Descriptions>
-                    </Card>
-                </Col>
-                
-                {/* Section 3: Performance/Portfolio (Conditional) */}
-                <Col xs={24} lg={8}>
-                    <Card title="Performance Snapshot" className="h-full border-t-4 border-green-500 shadow-md">
-                        {user.role === 'Loan Officer' ? (
-                            <Statistic
-                                title="Active Loan Portfolio Value"
-                                value={user.loanPortfolioValue}
-                                formatter={formatCurrency}
-                                valueStyle={{ color: '#3f8600' }}
-                            />
-                        ) : (
-                            <div className="p-4 bg-gray-50 rounded-lg">
-                                <Text type="secondary">
-                                    <HomeOutlined /> This user does not manage a direct loan portfolio.
-                                </Text>
-                            </div>
-                        )}
-                        <Divider />
-                        <Space direction="vertical" className="w-full">
-                            <Button type="primary" block>Edit User Details</Button>
-                            <Button type="dashed" danger block>Suspend Account</Button>
-                        </Space>
-                    </Card>
-                </Col>
-            </Row>
-        </div>
-    );
-};
-
-
-// ----------------------------------------------------
-// 3. MAIN COMPONENT (Users List)
-// ----------------------------------------------------
+interface User {
+  id: number;
+  name: string;
+  username: string;
+  email: string;
+  phoneNumber: string;
+  idNo: string;
+  gender: string;
+  designation?: string;
+  allowLogin: boolean;
+  role: Role;
+  branch: Branch;
+  createdAt: string;
+}
 
 const Users: React.FC = () => {
+  const [data, setData] = useState<User[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [pagination, setPagination] = useState({ current: 1, pageSize: 10, total: 0 });
   const [searchText, setSearchText] = useState('');
-  const [selectedRole, setSelectedRole] = useState('All');
+  
+  const [createModalOpen, setCreateModalOpen] = useState(false);
+  const [editModalOpen, setEditModalOpen] = useState(false);
+  const [viewModalOpen, setViewModalOpen] = useState(false);
+  const [appsModalOpen, setAppsModalOpen] = useState(false);
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
+  
+  const [submitting, setSubmitting] = useState(false);
+  
+  const [roles, setRoles] = useState<Role[]>([]);
+  const [branches, setBranches] = useState<Branch[]>([]);
+  const [userApps, setUserApps] = useState<any[]>([]);
+  const [availableApps, setAvailableApps] = useState<any[]>([]);
+  const [selectedApps, setSelectedApps] = useState<number[]>([]);
+  
+  const [createForm] = Form.useForm();
+  const [editForm] = Form.useForm();
 
-  // Memoize data to handle filtering
-  const filteredUsers = useMemo(() => {
-    let data = mockUsers;
+  useEffect(() => {
+    loadData();
+    loadRoles();
+    loadBranches();
+  }, []);
 
-    // 1. Filter by Role
-    if (selectedRole !== 'All') {
-        data = data.filter(user => user.role === selectedRole);
+  const loadData = async (page = 1, pageSize = 10, search = '') => {
+    try {
+      setLoading(true);
+      const params: any = { page, size: pageSize };
+      if (search) params.search = search;
+
+      const response = await http.get(APIS.LIST_USERS, { params });
+      
+      if (response.data.content) {
+        setData(response.data.content);
+        setPagination({ current: page, pageSize, total: response.data.totalElements || 0 });
+      } else {
+        setData(response.data);
+        setPagination({ current: 1, pageSize: 10, total: response.data.length });
+      }
+    } catch (error: any) {
+      message.error(error.response?.data?.message || 'Failed to load users');
+    } finally {
+      setLoading(false);
     }
-
-    // 2. Filter by Search Text (Name, Email, or ID)
-    if (searchText) {
-        const lowerCaseSearch = searchText.toLowerCase();
-        data = data.filter(user =>
-            user.name.toLowerCase().includes(lowerCaseSearch) ||
-            user.email.toLowerCase().includes(lowerCaseSearch) ||
-            user.id.toString().includes(lowerCaseSearch)
-        );
-    }
-
-    return data;
-  }, [selectedRole, searchText]);
-
-  // Handler to view user details
-  const handleViewUser = (record: User) => {
-    setSelectedUser(record);
   };
 
+  const loadRoles = async () => {
+    try {
+      const response = await http.get(APIS.ROLES);
+      setRoles(response.data);
+    } catch (error) {
+      message.error('Failed to load roles');
+    }
+  };
 
-  const userColumns = [
-    {
-      title: 'ID',
-      dataIndex: 'id',
-      key: 'id',
-      sorter: (a: User, b: User) => a.id - b.id,
-    },
+  const loadBranches = async () => {
+    try {
+      const response = await http.get(APIS.LOAD_BRANCHES);
+      const branchData = Array.isArray(response.data) ? response.data : response.data.content || [];
+      setBranches(branchData);
+    } catch (error) {
+      message.error('Failed to load branches');
+    }
+  };
+
+  const handleTableChange = (newPagination: any) => {
+    loadData(newPagination.current, newPagination.pageSize, searchText);
+  };
+
+  const handleSearch = (value: string) => {
+    setSearchText(value);
+    loadData(1, pagination.pageSize, value);
+  };
+
+  const handleCreate = async (values: any) => {
+    setSubmitting(true);
+    try {
+      await http.post(APIS.CREATE_USER, values);
+      message.success('User created successfully');
+      setCreateModalOpen(false);
+      createForm.resetFields();
+      loadData(pagination.current, pagination.pageSize, searchText);
+    } catch (error: any) {
+      message.error(error.response?.data?.message || 'Failed to create user');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleEdit = (user: User) => {
+    setSelectedUser(user);
+    editForm.setFieldsValue({
+      name: user.name,
+      username: user.username,
+      email: user.email,
+      phoneNumber: user.phoneNumber,
+      idNo: user.idNo,
+      gender: user.gender,
+      designation: user.designation,
+      roleId: user.role.id,
+      branchId: user.branch.id,
+    });
+    setEditModalOpen(true);
+  };
+
+  const handleUpdate = async (values: any) => {
+    if (!selectedUser) return;
+    
+    setSubmitting(true);
+    try {
+      await http.put(`${APIS.UPDATE_USER}/${selectedUser.id}`, values);
+      message.success('User updated successfully');
+      setEditModalOpen(false);
+      editForm.resetFields();
+      loadData(pagination.current, pagination.pageSize, searchText);
+    } catch (error: any) {
+      message.error(error.response?.data?.message || 'Failed to update user');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleToggleStatus = async (user: User) => {
+    try {
+      await http.put(`${APIS.ACTIVATEDEACTIVATE}/${user.id}`, { allowLogin: !user.allowLogin });
+      message.success(`User ${!user.allowLogin ? 'activated' : 'deactivated'} successfully`);
+      loadData(pagination.current, pagination.pageSize, searchText);
+    } catch (error: any) {
+      message.error(error.response?.data?.message || 'Failed to update user status');
+    }
+  };
+
+  const handleManageApps = async (user: User) => {
+    setSelectedUser(user);
+    try {
+      const [userAppsResponse, availableAppsResponse] = await Promise.all([
+        http.get(`${APIS.GET_USER_APPS}/${user.id}`),
+        http.get(APIS.GET_ALL_APPS),
+      ]);
+      setUserApps(userAppsResponse.data);
+      setAvailableApps(availableAppsResponse.data);
+      setSelectedApps(userAppsResponse.data.map((app: any) => app.id));
+      setAppsModalOpen(true);
+    } catch (error) {
+      message.error('Failed to load applications');
+    }
+  };
+
+  const handleSaveApps = async () => {
+    if (!selectedUser) return;
+
+    setSubmitting(true);
+    try {
+      await http.post(APIS.ASSIGN_USER_APPS, {
+        userId: selectedUser.id,
+        appIds: selectedApps,
+      });
+      message.success('Applications updated successfully');
+      setAppsModalOpen(false);
+    } catch (error: any) {
+      message.error(error.response?.data?.message || 'Failed to update applications');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const columns: ColumnsType<User> = [
     {
       title: 'Name',
       dataIndex: 'name',
       key: 'name',
-      render: (text: string) => <Text strong>{text}</Text>
-    },
-    {
-      title: 'Role',
-      dataIndex: 'role',
-      key: 'role',
-      render: (role: string) => <Tag color={getRoleTagColor(role)}>{role}</Tag>,
-      filters: Array.from(new Set(mockUsers.map(u => u.role))).map(role => ({ text: role, value: role })),
-      onFilter: (value: any, record: User) => record.role.indexOf(value as string) === 0,
-    },
-    {
-      title: 'Branch',
-      dataIndex: 'branch',
-      key: 'branch',
-    },
-    {
-      title: 'Status',
-      dataIndex: 'status',
-      key: 'status',
-      render: (status: string) => <Tag {...getStatusTagProps(status)}>{status}</Tag>,
     },
     {
       title: 'Email',
@@ -218,87 +216,226 @@ const Users: React.FC = () => {
       key: 'email',
     },
     {
-      title: 'Action',
-      key: 'action',
-      render: (_: any, record: User) => (
-          <Button 
-              type="link" 
-              onClick={() => handleViewUser(record)} 
+      title: 'Phone Number',
+      dataIndex: 'phoneNumber',
+      key: 'phoneNumber',
+    },
+    {
+      title: 'ID Number',
+      dataIndex: 'idNo',
+      key: 'idNo',
+    },
+    {
+      title: 'Role',
+      key: 'role',
+      render: (_, record) => record.role?.roleName || 'N/A',
+    },
+    {
+      title: 'Gender',
+      dataIndex: 'gender',
+      key: 'gender',
+    },
+    {
+      title: 'Branch',
+      key: 'branch',
+      render: (_, record) => record.branch?.branchName || 'N/A',
+    },
+    {
+      title: 'Status',
+      dataIndex: 'allowLogin',
+      key: 'allowLogin',
+      render: (allowLogin) => (
+        <Tag color={allowLogin ? 'green' : 'red'}>{allowLogin ? 'ACTIVE' : 'INACTIVE'}</Tag>
+      ),
+    },
+    {
+      title: 'Actions',
+      key: 'actions',
+      width: 180,
+      render: (_, record) => (
+        <div style={{ display: 'flex', gap: 8 }}>
+          <Tooltip title="Edit">
+            <Button type="link" icon={<EditOutlined />} onClick={() => handleEdit(record)} />
+          </Tooltip>
+          <Tooltip title="View">
+            <Button
+              type="link"
               icon={<EyeOutlined />}
-              className="p-0"
-          >
-              View Profile
-          </Button>
+              onClick={() => { setSelectedUser(record); setViewModalOpen(true); }}
+            />
+          </Tooltip>
+          <Tooltip title="Manage Apps">
+            <Button
+              type="link"
+              icon={<AppstoreAddOutlined />}
+              onClick={() => handleManageApps(record)}
+            />
+          </Tooltip>
+          <Tooltip title={record.allowLogin ? 'Deactivate' : 'Activate'}>
+            <Button
+              type="link"
+              danger={record.allowLogin}
+              icon={record.allowLogin ? <CloseCircleOutlined /> : <CheckCircleOutlined />}
+              onClick={() => handleToggleStatus(record)}
+            />
+          </Tooltip>
+        </div>
       ),
     },
   ];
 
-  // Conditional Rendering: Show detail view if a loan is selected
-  if (selectedUser) {
-    return <UserDetailView user={selectedUser} onBack={() => setSelectedUser(null)} />;
-  }
+  const formItems = (
+    <>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+        <Form.Item name="name" label="Full Name" rules={[{ required: true }]}>
+          <Input />
+        </Form.Item>
+        <Form.Item name="username" label="Username" rules={[{ required: true }]}>
+          <Input />
+        </Form.Item>
+        <Form.Item name="email" label="Email" rules={[{ required: true, type: 'email' }]}>
+          <Input />
+        </Form.Item>
+        <Form.Item name="phoneNumber" label="Phone Number" rules={[{ required: true }]}>
+          <Input />
+        </Form.Item>
+        <Form.Item name="idNo" label="ID Number" rules={[{ required: true }]}>
+          <Input />
+        </Form.Item>
+        <Form.Item name="gender" label="Gender" rules={[{ required: true }]}>
+          <Select options={[{ label: 'Male', value: 'MALE' }, { label: 'Female', value: 'FEMALE' }]} />
+        </Form.Item>
+        <Form.Item name="designation" label="Designation">
+          <Input />
+        </Form.Item>
+        <Form.Item name="roleId" label="Role" rules={[{ required: true }]}>
+          <Select options={roles.map(r => ({ label: r.roleName, value: r.id }))} />
+        </Form.Item>
+        <Form.Item name="branchId" label="Branch" rules={[{ required: true }]}>
+          <Select options={branches.map(b => ({ label: b.branchName, value: b.id }))} />
+        </Form.Item>
+      </div>
+    </>
+  );
 
-
-  // Main User List View
   return (
     <div>
       <PageHeader 
         title="Users" 
         breadcrumbs={[
+          { title: 'Home', path: '/' },
+          { title: 'User Management', path: '#' },
           { title: 'Users' }
         ]} 
       />
-      
-      <div className="page-container p-4 min-h-screen bg-gray-50">
-        <Title level={2} className="text-gray-800">
-          👥 System User Management <TeamOutlined style={{ color: '#888' }} />
-        </Title>
-        <Text type="secondary">
-          Manage and view data for **all system users**, their roles, and current operational status.
-        </Text>
 
-      <Card title={<Title level={4} className="mb-0"><SolutionOutlined /> User Directory</Title>} className="mt-4 shadow-lg border-t-4 border-gray-400">
-        
-        {/* Filter and Search Controls */}
-        <Row gutter={[16, 16]} align="middle" className="mb-4">
-            <Col xs={24} md={10} lg={6}>
-                <Input
-                    placeholder="Search Name, Email or ID"
-                    prefix={<SearchOutlined />}
-                    allowClear
-                    value={searchText}
-                    onChange={e => setSearchText(e.target.value)}
-                    size="large"
-                />
-            </Col>
-            <Col xs={24} md={8} lg={6}>
-                <Select
-                    value={selectedRole}
-                    style={{ width: '100%' }}
-                    onChange={setSelectedRole}
-                    size="large"
-                >
-                    <Option value="All">Filter by: All Roles</Option>
-                    {Array.from(new Set(mockUsers.map(u => u.role))).map(role => (
-                        <Option key={role} value={role}>{role}</Option>
-                    ))}
-                </Select>
-            </Col>
-            <Col xs={24} md={6} lg={12} className="text-right">
-                <Text type="secondary">Showing {filteredUsers.length} active users/profiles.</Text>
-            </Col>
-        </Row>
-        
-        {/* User Table */}
-        <Table 
-            columns={userColumns} 
-            dataSource={filteredUsers}
-            rowKey="id"
-            pagination={{ pageSize: 10 }}
-            size="middle"
+      <PageCard
+        extra={
+          <Button type="primary" icon={<PlusOutlined />} onClick={() => setCreateModalOpen(true)}>
+            Add User
+          </Button>
+        }
+      >
+        <Input.Search
+          placeholder="Search users..."
+          onSearch={handleSearch}
+          onChange={(e) => e.target.value === '' && handleSearch('')}
+          style={{ marginBottom: 16, maxWidth: 400 }}
+          allowClear
         />
-      </Card>
-      </div>
+
+        <Table
+          columns={columns}
+          dataSource={data}
+          rowKey="id"
+          loading={loading}
+          pagination={pagination}
+          onChange={handleTableChange}
+          scroll={{ x: 1200 }}
+        />
+      </PageCard>
+
+      {/* Create Modal */}
+      <Modal
+        title="Add User"
+        open={createModalOpen}
+        onCancel={() => { setCreateModalOpen(false); createForm.resetFields(); }}
+        onOk={() => createForm.submit()}
+        confirmLoading={submitting}
+        width={800}
+      >
+        <Form form={createForm} layout="vertical" onFinish={handleCreate}>
+          {formItems}
+          <Form.Item name="password" label="Password" rules={[{ required: true, min: 6 }]}>
+            <Input.Password />
+          </Form.Item>
+        </Form>
+      </Modal>
+
+      {/* Edit Modal */}
+      <Modal
+        title={`Edit: ${selectedUser?.name}`}
+        open={editModalOpen}
+        onCancel={() => { setEditModalOpen(false); editForm.resetFields(); }}
+        onOk={() => editForm.submit()}
+        confirmLoading={submitting}
+        width={800}
+      >
+        <Form form={editForm} layout="vertical" onFinish={handleUpdate}>
+          {formItems}
+        </Form>
+      </Modal>
+
+      {/* View Modal */}
+      <Modal
+        title={selectedUser?.name}
+        open={viewModalOpen}
+        onCancel={() => setViewModalOpen(false)}
+        footer={null}
+        width={700}
+      >
+        {selectedUser && (
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+            <div><strong>Username:</strong> {selectedUser.username}</div>
+            <div><strong>Email:</strong> {selectedUser.email}</div>
+            <div><strong>Phone:</strong> {selectedUser.phoneNumber}</div>
+            <div><strong>ID Number:</strong> {selectedUser.idNo}</div>
+            <div><strong>Gender:</strong> {selectedUser.gender}</div>
+            <div><strong>Designation:</strong> {selectedUser.designation || 'N/A'}</div>
+            <div><strong>Role:</strong> {selectedUser.role?.roleName}</div>
+            <div><strong>Branch:</strong> {selectedUser.branch?.branchName}</div>
+            <div><strong>Status:</strong> <Tag color={selectedUser.allowLogin ? 'green' : 'red'}>{selectedUser.allowLogin ? 'ACTIVE' : 'INACTIVE'}</Tag></div>
+            <div><strong>Created:</strong> {new Date(selectedUser.createdAt).toLocaleDateString()}</div>
+          </div>
+        )}
+      </Modal>
+
+      {/* Manage Apps Modal */}
+      <Modal
+        title={`Manage Applications: ${selectedUser?.name}`}
+        open={appsModalOpen}
+        onCancel={() => setAppsModalOpen(false)}
+        onOk={handleSaveApps}
+        confirmLoading={submitting}
+        width={600}
+      >
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          {availableApps.map((app) => (
+            <div key={app.id} style={{ padding: 8, border: '1px solid #d9d9d9', borderRadius: 4 }}>
+              <Switch
+                checked={selectedApps.includes(app.id)}
+                onChange={(checked) => {
+                  setSelectedApps(checked 
+                    ? [...selectedApps, app.id]
+                    : selectedApps.filter(id => id !== app.id)
+                  );
+                }}
+              />
+              <span style={{ marginLeft: 12 }}>{app.appName}</span>
+            </div>
+          ))}
+        </div>
+      </Modal>
     </div>
   );
 };

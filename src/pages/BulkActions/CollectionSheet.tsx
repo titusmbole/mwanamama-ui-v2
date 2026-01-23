@@ -1,335 +1,468 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { 
-    Typography, Card, Button, Upload, Table, Tag, Row, Col, Statistic, message, Space, Alert
+  Form, Input, Button, Table, Card, Statistic, Row, Col, message, Spin, Select, InputNumber
 } from 'antd';
 import { 
-    UploadOutlined, CheckCircleOutlined, CloseCircleOutlined, SendOutlined, MoneyCollectOutlined, FileExcelOutlined, DollarCircleOutlined
+  SaveOutlined, CalendarOutlined, UserOutlined, EnvironmentOutlined,
+  DollarCircleOutlined
 } from '@ant-design/icons';
+import type { ColumnsType } from 'antd/es/table';
 import PageHeader from '../../components/common/Layout/PageHeader';
+import PageCard from '../../components/common/PageCard/PageCard';
+import http from '../../services/httpInterceptor';
+import { APIS } from '../../services/APIS';
 
-const { Title, Text } = Typography;
-
-const CURRENCY = 'Ksh';
-
-// ----------------------------------------------------
-// 1. DATA STRUCTURES & MOCK DATA
-// ----------------------------------------------------
-
-interface BulkCollectionItem {
-    loanAccountNumber: string;
-    clientName: string;
-    collectionAmount: number;
-    receiptRef: string;
-    validationStatus: 'Valid' | 'Invalid' | 'Ready';
-    validationError: string;
-    collectionStatus: 'Pending' | 'Success' | 'Failed';
+interface Group {
+  id: number;
+  groupName: string;
+  groupNumber: string;
+  meetingDay: string;
+  location: string;
+  memberCount: number;
 }
 
-// Mock data representing the results of a file upload and validation
-const initialBatchResults: BulkCollectionItem[] = [
-    {
-        loanAccountNumber: 'LN001A', clientName: 'Alice Johnson (Truetana)', collectionAmount: 4000, receiptRef: 'R001',
-        validationStatus: 'Valid', validationError: '', collectionStatus: 'Pending',
-    },
-    {
-        loanAccountNumber: 'LN002B', clientName: 'Bob Smith', collectionAmount: 2500, receiptRef: 'R002',
-        validationStatus: 'Valid', validationError: '', collectionStatus: 'Pending',
-    },
-    {
-        loanAccountNumber: 'LN003C', clientName: 'Charlie Brown (Unity Sacco)', collectionAmount: 1500, receiptRef: 'R003',
-        validationStatus: 'Invalid', validationError: 'Payment amount is less than the minimum required EMI', collectionStatus: 'Pending',
-    },
-    {
-        loanAccountNumber: 'LN004D', clientName: 'Diana Prince', collectionAmount: 8000, receiptRef: 'R004',
-        validationStatus: 'Valid', validationError: '', collectionStatus: 'Pending',
-    },
-    {
-        loanAccountNumber: 'LN099Z', clientName: 'Unknown Loan', collectionAmount: 1000, receiptRef: 'R005',
-        validationStatus: 'Invalid', validationError: 'Loan account number not found in system', collectionStatus: 'Pending',
-    },
-];
+interface Client {
+  id: number;
+  fullName: string;
+  memberNumber: string;
+  loanId?: number;
+  loanAmount?: number;
+}
 
-// --- CSV TEMPLATE DATA ---
-const CSV_TEMPLATE_CONTENT = 
-`loanAccountNumber,clientName,collectionAmount,receiptRef
-LN010A,Mary Kasich,15000,C010
-LN011B,John Mwangi,25000,C011
-LN012C,Sarah Nzioka,8000,C012
-`;
-
-// ----------------------------------------------------
-// 2. HELPER FUNCTIONS
-// ----------------------------------------------------
-
-const formatCurrency = (amount: number) => {
-    return `${CURRENCY} ${amount.toLocaleString('en-US', { minimumFractionDigits: 2 })}`;
-};
-
-/**
- * Helper function to create a downloadable file from text content.
- */
-const handleDownloadTemplate = () => {
-    const blob = new Blob([CSV_TEMPLATE_CONTENT], { type: 'text/csv;charset=utf-8;' });
-    const link = document.createElement("a");
-    
-    const url = URL.createObjectURL(blob);
-    link.setAttribute("href", url);
-    link.setAttribute("download", "bulk_collection_template.csv");
-    link.style.visibility = 'hidden';
-    
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    message.success('Download initiated for the CSV template.');
-};
-
-// ----------------------------------------------------
-// 3. MAIN COMPONENT
-// ----------------------------------------------------
+interface CollectionRow extends Client {
+  ekinaSavings: number;
+  drawdownAccount: number;
+  registration: number;
+}
 
 const CollectionSheet: React.FC = () => {
-    const [batchData, setBatchData] = useState<BulkCollectionItem[]>([]);
-    const [loading, setLoading] = useState(false);
-    const [currentStep, setCurrentStep] = useState(0); // 0: Upload, 1: Validate, 2: Execute
+  const [form] = Form.useForm();
+  const [selectedGroup, setSelectedGroup] = useState<Group | null>(null);
+  const [collectionData, setCollectionData] = useState<CollectionRow[]>([]);
+  const [groups, setGroups] = useState<Group[]>([]);
+  const [loadingGroups, setLoadingGroups] = useState(false);
+  const [loadingInfo, setLoadingInfo] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [mpesaAmount, setMpesaAmount] = useState(0);
+  const [mpesaCode, setMpesaCode] = useState('');
+  const [searchTerm, setSearchTerm] = useState('');
 
-    // --- Metrics ---
-    const totalCount = batchData.length;
-    const validCount = batchData.filter(item => item.validationStatus === 'Valid').length;
-    const readyToCollectCount = batchData.filter(item => item.validationStatus === 'Valid' && item.collectionStatus === 'Pending').length;
-    const successCount = batchData.filter(item => item.collectionStatus === 'Success').length;
-    const totalCollectedAmount = useMemo(() => 
-        batchData.reduce((sum, item) => sum + (item.collectionStatus === 'Success' ? item.collectionAmount : 0), 0), [batchData]
+  useEffect(() => {
+    loadGroups();
+  }, []);
+
+  const loadGroups = async () => {
+    try {
+      setLoadingGroups(true);
+      const response = await http.get(APIS.LOAD_GROUPS_UNPAGINATED);
+      setGroups(response.data);
+    } catch (error: any) {
+      message.error(
+        error.response?.status === 403
+          ? 'Not authorized to perform this action!'
+          : error.response?.data?.message || 'Failed to load groups'
+      );
+    } finally {
+      setLoadingGroups(false);
+    }
+  };
+
+  const loadGroupInfo = async (groupId: number) => {
+    try {
+      setLoadingInfo(true);
+      const response = await http.get<{ clients: Client[]; mpesaPayment?: number; mpesaCode?: string }>(
+        `${APIS.LOAD_GROUPS_INFO}/${groupId}`
+      );
+      
+      const initialData: CollectionRow[] = response.data.clients.map((member: Client) => ({
+        ...member,
+        ekinaSavings: 0,
+        drawdownAccount: 0,
+        registration: 0,
+      }));
+      
+      setCollectionData(initialData);
+      setMpesaAmount(response.data.mpesaPayment || 0);
+      setMpesaCode(response.data.mpesaCode || '');
+    } catch (error: any) {
+      message.error(
+        error.response?.status === 403
+          ? 'Not authorized to perform this action!'
+          : error.response?.data?.message || 'Failed to load group info'
+      );
+    } finally {
+      setLoadingInfo(false);
+    }
+  };
+
+  const handleGroupChange = (groupId: number) => {
+    const group = groups.find(g => g.id === groupId);
+    if (group) {
+      setSelectedGroup(group);
+      loadGroupInfo(groupId);
+      // Reset form fields
+      form.setFieldsValue({
+        receiptNumber: '',
+        chequeNumber: '',
+        accountNumber: '',
+        payBill: '',
+        mpesaCode: '',
+      });
+    }
+  };
+
+  const handleInputChange = (memberId: number, field: keyof CollectionRow, value: number) => {
+    setCollectionData(prev =>
+      prev.map(member =>
+        member.id === memberId ? { ...member, [field]: value || 0 } : member
+      )
     );
+  };
 
-    // --- Handlers ---
+  const totals = useMemo(() => {
+    return collectionData.reduce(
+      (acc, member) => ({
+        ekinaSavings: acc.ekinaSavings + (member.ekinaSavings || 0),
+        drawdownAccount: acc.drawdownAccount + (member.drawdownAccount || 0),
+        registration: acc.registration + (member.registration || 0),
+      }),
+      { ekinaSavings: 0, drawdownAccount: 0, registration: 0 }
+    );
+  }, [collectionData]);
 
-    const handleFileUpload = (file: File) => {
-        // Simulates file upload and backend validation
-        setLoading(true);
-        message.info(`Simulating upload and validation of ${file.name}...`);
+  const grandTotal = totals.ekinaSavings + totals.drawdownAccount + totals.registration;
 
-        setTimeout(() => {
-            // Simulate setting the batch data after validation
-            setBatchData(initialBatchResults);
-            setCurrentStep(1); // Move to validation step
-            message.success('File validated. Review the batch status below.');
-            setLoading(false);
-        }, 1500);
-        return false; // Prevent default Antd upload action
-    };
+  const handleSubmit = async (values: any) => {
+    if (!selectedGroup) {
+      message.error('Please select a group first');
+      return;
+    }
 
-    const handleExecuteCollection = () => {
-        if (readyToCollectCount === 0) {
-            message.warning('No valid collections ready for execution.');
-            return;
-        }
+    if (totals.ekinaSavings === 0 && totals.drawdownAccount === 0 && totals.registration === 0) {
+      message.error('Cannot post an empty collection sheet! At least one collection type must have a value.');
+      return;
+    }
 
-        setLoading(true);
-        message.loading(`Executing bulk collection for ${readyToCollectCount} loan payments...`, 2);
+    setSubmitting(true);
+    try {
+      const collectionSheetNumber = Math.floor(1000000000 + Math.random() * 9000000000);
 
-        setTimeout(() => {
-            // Simulate collection execution process
-            setBatchData(prevData => prevData.map(item => {
-                if (item.validationStatus === 'Valid' && item.collectionStatus === 'Pending') {
-                    // Simulate a small chance of failure (e.g., system error)
-                    const isSuccess = Math.random() > 0.1; 
-                    return {
-                        ...item,
-                        collectionStatus: isSuccess ? 'Success' as const : 'Failed' as const,
-                    };
-                }
-                return item;
-            }));
+      const collections = collectionData
+        .map(member => ({
+          clientId: member.id,
+          savingAmount: member.ekinaSavings || 0,
+          loanAmount: member.drawdownAccount || 0,
+          loanId: member.loanId || null,
+          registration: member.registration || 0,
+        }))
+        .filter(member => !(member.savingAmount === 0 && member.loanAmount === 0 && member.registration === 0));
 
-            setCurrentStep(2); // Move to final status review
-            setLoading(false);
-            message.success(`Collection batch complete. ${successCount} payments processed successfully.`);
-        }, 3000);
-    };
+      const payload = {
+        collectionSheetNumber,
+        receiptNumber: values.receiptNumber || '',
+        chequeNumber: values.chequeNumber || '',
+        accountNumber: values.accountNumber || '',
+        payBill: values.payBill || '',
+        mpesaCode: mpesaCode,
+        totalSavings: totals.ekinaSavings,
+        totalLoan: totals.drawdownAccount,
+        totalRegistration: totals.registration,
+        groupId: selectedGroup.id,
+        collections,
+      };
 
-    const handleNewBatch = () => {
-        setBatchData([]);
-        setCurrentStep(0);
-        message.info('Ready for new batch upload.');
-    };
+      const response = await http.post(APIS.POST_COLLECTIONS, payload);
+      message.success(response.data.message || 'Collection sheet posted successfully');
 
-    // --- Table Configuration ---
+      // Reset form and reload
+      form.resetFields();
+      setMpesaAmount(0);
+      setMpesaCode('');
+      loadGroupInfo(selectedGroup.id);
+    } catch (error: any) {
+      message.error(
+        error.response?.status === 403
+          ? 'Not authorized to perform this action!'
+          : error.response?.data?.message || 'Failed to save collection data'
+      );
+    } finally {
+      setSubmitting(false);
+    }
+  };
 
-    const columns = [
-        { title: 'Loan Account', dataIndex: 'loanAccountNumber', key: 'loanAccountNumber', width: 120 },
-        { title: 'Client Name', dataIndex: 'clientName', key: 'clientName' },
-        { 
-            title: 'Collection Amount', 
-            dataIndex: 'collectionAmount', 
-            key: 'collectionAmount',
-            align: 'right' as const,
-            render: (amount: number) => formatCurrency(amount)
-        },
-        { 
-            title: 'Ref ID', 
-            dataIndex: 'receiptRef', 
-            key: 'receiptRef',
-            width: 100
-        },
-        { 
-            title: 'Validation Status', 
-            dataIndex: 'validationStatus', 
-            key: 'validationStatus',
-            align: 'center' as const,
-            render: (status: BulkCollectionItem['validationStatus'], record: BulkCollectionItem) => {
-                if (status === 'Invalid') {
-                    return <Tag color="error" title={record.validationError}><CloseCircleOutlined /> Invalid</Tag>;
-                } else if (status === 'Valid') {
-                    return <Tag color="success"><CheckCircleOutlined /> Valid</Tag>;
-                }
-                return <Tag>{status}</Tag>;
+  const filteredData = searchTerm
+    ? collectionData.filter(member =>
+        member.fullName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        member.memberNumber?.includes(searchTerm)
+      )
+    : collectionData;
+
+  const columns: ColumnsType<CollectionRow> = [
+    {
+      title: 'Member No.',
+      dataIndex: 'memberNumber',
+      key: 'memberNumber',
+      width: 120,
+    },
+    {
+      title: 'Member Name',
+      dataIndex: 'fullName',
+      key: 'fullName',
+      width: 200,
+    },
+    {
+      title: 'Loan Amount',
+      dataIndex: 'loanAmount',
+      key: 'loanAmount',
+      width: 120,
+      render: (amount) => amount ? `Ksh ${amount.toLocaleString()}` : '-',
+    },
+    {
+      title: 'Ekina Savings',
+      key: 'ekinaSavings',
+      width: 150,
+      render: (_, record) => (
+        <InputNumber
+          min={0}
+          value={record.ekinaSavings}
+          onChange={(value) => handleInputChange(record.id, 'ekinaSavings', value || 0)}
+          style={{ width: '100%' }}
+          prefix="Ksh"
+        />
+      ),
+    },
+    {
+      title: 'Loan Repayment',
+      key: 'drawdownAccount',
+      width: 150,
+      render: (_, record) => (
+        <InputNumber
+          min={0}
+          value={record.drawdownAccount}
+          onChange={(value) => handleInputChange(record.id, 'drawdownAccount', value || 0)}
+          style={{ width: '100%' }}
+          prefix="Ksh"
+        />
+      ),
+    },
+    {
+      title: 'Registration',
+      key: 'registration',
+      width: 150,
+      render: (_, record) => (
+        <InputNumber
+          min={0}
+          value={record.registration}
+          onChange={(value) => handleInputChange(record.id, 'registration', value || 0)}
+          style={{ width: '100%' }}
+          prefix="Ksh"
+        />
+      ),
+    },
+  ];
+
+  return (
+    <div>
+      <PageHeader 
+        title="Collection Sheet" 
+        breadcrumbs={[
+          { title: 'Home', path: '/' },
+          { title: 'Bulk Actions', path: '#' },
+          { title: 'Collection Sheet' }
+        ]} 
+      />
+
+      <PageCard>
+        {/* Group Selection */}
+        <div style={{ marginBottom: 24 }}>
+          <Select
+            showSearch
+            placeholder="Select a group"
+            style={{ width: '100%', maxWidth: 400 }}
+            loading={loadingGroups}
+            onChange={handleGroupChange}
+            filterOption={(input, option) =>
+              (option?.label ?? '').toLowerCase().includes(input.toLowerCase())
             }
-        },
-        { 
-            title: 'Execution Status', 
-            dataIndex: 'collectionStatus', 
-            key: 'collectionStatus',
-            align: 'center' as const,
-            render: (status: BulkCollectionItem['collectionStatus']) => {
-                switch (status) {
-                    case 'Success': return <Tag color="blue"><DollarCircleOutlined /> Success</Tag>;
-                    case 'Failed': return <Tag color="red"><CloseCircleOutlined /> Failed</Tag>;
-                    default: return <Tag color="default">Pending</Tag>;
-                }
-            }
-        },
-    ];
+            options={groups.map(group => ({
+              label: `${group.groupName} (${group.groupNumber})`,
+              value: group.id,
+            }))}
+          />
+        </div>
 
-    // --- Render ---
-
-    return (
-        <div>
-            <PageHeader 
-                title="Collection Sheet" 
-                breadcrumbs={[
-                    { title: 'Collection Sheet' }
-                ]} 
-            />
-            
-            <div className="page-container p-4 min-h-screen bg-gray-50">
-                <Title level={2} className="text-gray-800">
-                    <MoneyCollectOutlined style={{ marginRight: 10 }} /> Bulk Loan Collection
-                </Title>
-                <Text type="secondary">
-                    Upload a spreadsheet containing loan payments for processing across multiple borrower accounts.
-                </Text>
-
-            {/* --- Process Flow Cards --- */}
-            <Row gutter={24} className="mt-6">
-                <Col xs={24} lg={8}>
-                    <Card 
-                        title={<Text strong>1. Upload Collection File</Text>} 
-                        className={`shadow-md ${currentStep === 0 ? 'border-2 border-blue-500' : 'border-gray-200'}`}
-                    >
-                        <Space direction="vertical" style={{ width: '100%' }}>
-                            <Upload 
-                                beforeUpload={handleFileUpload} 
-                                accept=".csv,.xlsx" 
-                                maxCount={1}
-                                showUploadList={currentStep === 0}
-                            >
-                                <Button 
-                                    icon={<UploadOutlined />} 
-                                    loading={loading} 
-                                    disabled={currentStep !== 0}
-                                    block
-                                >
-                                    Select Collection File (CSV/XLSX)
-                                </Button>
-                            </Upload>
-                            
-                            <Button 
-                                icon={<FileExcelOutlined />} 
-                                onClick={handleDownloadTemplate} 
-                                disabled={loading}
-                                block
-                            >
-                                Download CSV Template
-                            </Button>
-                        </Space>
-                    </Card>
+        {selectedGroup && (
+          <>
+            {/* Group Info */}
+            <Card style={{ marginBottom: 24, backgroundColor: '#f5f5f5' }}>
+              <Row gutter={16}>
+                <Col xs={24} sm={8}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                    <UserOutlined style={{ fontSize: 24, color: '#1890ff' }} />
+                    <div>
+                      <div style={{ fontWeight: 500 }}>{selectedGroup.groupName}</div>
+                      <div style={{ fontSize: 12, color: '#666' }}>
+                        {selectedGroup.memberCount} Members
+                      </div>
+                    </div>
+                  </div>
                 </Col>
-                
-                <Col xs={24} lg={8}>
-                    <Card 
-                        title={<Text strong>2. Review & Execute</Text>}
-                        className={`shadow-md ${currentStep === 1 ? 'border-2 border-blue-500' : 'border-gray-200'}`}
-                    >
-                        <Statistic 
-                            title="Valid Payments Ready" 
-                            value={readyToCollectCount} 
-                            valueStyle={{ color: '#52c41a' }}
-                            suffix={`/ ${totalCount}`}
-                        />
-                        <Button 
-                            type="primary" 
-                            icon={<SendOutlined />} 
-                            onClick={handleExecuteCollection} 
-                            loading={loading}
-                            disabled={currentStep !== 1 || readyToCollectCount === 0}
-                            block
-                            className="mt-4"
-                        >
-                            Execute Valid Payments
-                        </Button>
-                    </Card>
+                <Col xs={24} sm={8}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                    <CalendarOutlined style={{ fontSize: 24, color: '#52c41a' }} />
+                    <div>
+                      <div style={{ fontWeight: 500 }}>Meeting Day</div>
+                      <div style={{ fontSize: 12, color: '#666' }}>
+                        {selectedGroup.meetingDay}
+                      </div>
+                    </div>
+                  </div>
                 </Col>
+                <Col xs={24} sm={8}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                    <EnvironmentOutlined style={{ fontSize: 24, color: '#fa8c16' }} />
+                    <div>
+                      <div style={{ fontWeight: 500 }}>Location</div>
+                      <div style={{ fontSize: 12, color: '#666' }}>
+                        {selectedGroup.location}
+                      </div>
+                    </div>
+                  </div>
+                </Col>
+              </Row>
+            </Card>
 
-                <Col xs={24} lg={8}>
-                    <Card 
-                        title={<Text strong>3. Final Status</Text>}
-                        className={`shadow-md ${currentStep === 2 ? 'border-2 border-green-500' : 'border-gray-200'}`}
-                    >
-                        <Statistic 
-                            title="Total Funds Collected" 
-                            value={totalCollectedAmount}
-                            prefix={CURRENCY}
-                            precision={2}
-                            valueStyle={{ color: '#1890ff' }}
-                        />
-                        <Button 
-                            type="default" 
-                            icon={<FileExcelOutlined />} 
-                            onClick={handleNewBatch}
-                            disabled={currentStep === 0}
-                            block
-                            className="mt-4"
-                        >
-                            Start New Batch
-                        </Button>
-                    </Card>
-                </Col>
+            {/* Totals */}
+            <Row gutter={16} style={{ marginBottom: 24 }}>
+              <Col xs={24} sm={6}>
+                <Card>
+                  <Statistic
+                    title="Ekina Savings"
+                    value={totals.ekinaSavings}
+                    prefix="Ksh"
+                    valueStyle={{ color: '#3f8600' }}
+                  />
+                </Card>
+              </Col>
+              <Col xs={24} sm={6}>
+                <Card>
+                  <Statistic
+                    title="Loan Repayments"
+                    value={totals.drawdownAccount}
+                    prefix="Ksh"
+                    valueStyle={{ color: '#1890ff' }}
+                  />
+                </Card>
+              </Col>
+              <Col xs={24} sm={6}>
+                <Card>
+                  <Statistic
+                    title="Registration Fees"
+                    value={totals.registration}
+                    prefix="Ksh"
+                    valueStyle={{ color: '#fa8c16' }}
+                  />
+                </Card>
+              </Col>
+              <Col xs={24} sm={6}>
+                <Card>
+                  <Statistic
+                    title="Grand Total"
+                    value={grandTotal}
+                    prefix="Ksh"
+                    valueStyle={{ color: '#cf1322', fontWeight: 'bold' }}
+                  />
+                </Card>
+              </Col>
             </Row>
 
-            {/* --- Batch Results Table --- */}
-            {batchData.length > 0 && (
-                <Card title={<Title level={4} className="mt-4">Batch Execution Log ({totalCount} items)</Title>} className="shadow-lg mt-6">
-                    <Table
-                        columns={columns}
-                        dataSource={batchData}
-                        rowKey="loanAccountNumber"
-                        pagination={{ pageSize: 5 }}
-                        size="middle"
-                        bordered
-                    />
-                </Card>
-            )}
+            {/* Search */}
+            <Input.Search
+              placeholder="Search members by name or member number..."
+              onChange={(e) => setSearchTerm(e.target.value)}
+              style={{ marginBottom: 16, maxWidth: 400 }}
+            />
 
-            {batchData.length === 0 && currentStep === 0 && (
-                 <Card style={{ marginTop: 20 }} className="text-center p-8 border-dashed border-2 border-gray-300">
-                    <FileExcelOutlined style={{ fontSize: '48px', color: '#ccc' }} />
-                    <Title level={4} type="secondary" className="mt-2">Upload a file to begin bulk processing</Title>
-                    <Text type="secondary">Use the template to map payments to the correct loan accounts.</Text>
+            {/* Members Table */}
+            <Spin spinning={loadingInfo}>
+              <Table
+                columns={columns}
+                dataSource={filteredData}
+                rowKey="id"
+                pagination={false}
+                scroll={{ x: 800 }}
+                bordered
+              />
+            </Spin>
+
+            {/* Payment Info Form */}
+            <Form
+              form={form}
+              layout="vertical"
+              onFinish={handleSubmit}
+              style={{ marginTop: 24 }}
+            >
+              <Row gutter={16}>
+                <Col xs={24} sm={12} md={6}>
+                  <Form.Item name="receiptNumber" label="Receipt Number">
+                    <Input placeholder="Enter receipt number" />
+                  </Form.Item>
+                </Col>
+                <Col xs={24} sm={12} md={6}>
+                  <Form.Item name="chequeNumber" label="Cheque Number">
+                    <Input placeholder="Enter cheque number" />
+                  </Form.Item>
+                </Col>
+                <Col xs={24} sm={12} md={6}>
+                  <Form.Item name="accountNumber" label="Account Number">
+                    <Input placeholder="Enter account number" />
+                  </Form.Item>
+                </Col>
+                <Col xs={24} sm={12} md={6}>
+                  <Form.Item name="payBill" label="PayBill">
+                    <Input placeholder="Enter paybill" />
+                  </Form.Item>
+                </Col>
+              </Row>
+
+              {mpesaAmount > 0 && (
+                <Card style={{ marginBottom: 16, backgroundColor: '#e6f7ff' }}>
+                  <Row gutter={16}>
+                    <Col span={12}>
+                      <Statistic
+                        title="M-Pesa Payment"
+                        value={mpesaAmount}
+                        prefix={<DollarCircleOutlined />}
+                        valueStyle={{ color: '#1890ff' }}
+                      />
+                    </Col>
+                    <Col span={12}>
+                      <div style={{ marginTop: 8 }}>
+                        <div style={{ fontSize: 14, color: '#666' }}>M-Pesa Code</div>
+                        <div style={{ fontSize: 16, fontWeight: 500 }}>{mpesaCode}</div>
+                      </div>
+                    </Col>
+                  </Row>
                 </Card>
-            )}
-            </div>
-        </div>
-    );
+              )}
+
+              <Form.Item>
+                <Button
+                  type="primary"
+                  htmlType="submit"
+                  icon={<SaveOutlined />}
+                  loading={submitting}
+                  size="large"
+                >
+                  Post Collection Sheet
+                </Button>
+              </Form.Item>
+            </Form>
+          </>
+        )}
+      </PageCard>
+    </div>
+  );
 };
 
 export default CollectionSheet;
