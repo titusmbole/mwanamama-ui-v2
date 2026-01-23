@@ -8,6 +8,7 @@ import {
     CheckCircleOutlined, SearchOutlined, RiseOutlined, EyeOutlined, // Added EyeOutlined
     ArrowLeftOutlined, UserOutlined, PhoneOutlined, SolutionOutlined, HistoryOutlined
 } from '@ant-design/icons';
+import PageHeader from '../../components/common/Layout/PageHeader';
 
 const { Title, Text } = Typography;
 const { Option } = Select;
@@ -277,11 +278,19 @@ const DuesReport: React.FC = () => {
 
   // Main Report View
   return (
-    <div className="page-container p-4 min-h-screen bg-gray-50">
-      <Title level={2} className="text-gray-800">
-        🔔 Loans Due Report <BellOutlined style={{ color: '#faad14' }} />
-      </Title>
-      <Text type="secondary">
+    <div>
+      <PageHeader 
+        title="Dues Report" 
+        breadcrumbs={[
+          { title: 'Dues Report' }
+        ]} 
+      />
+      
+      <div className="page-container p-4 min-h-screen bg-gray-50">
+        <Title level={2} className="text-gray-800">
+          🔔 Loans Due Report <BellOutlined style={{ color: '#faad14' }} />
+        </Title>
+        <Text type="secondary">
         Manage and view data for **upcoming loan repayments** and expected collections. This view guides daily collection activities.
       </Text>
 
@@ -386,6 +395,7 @@ const DuesReport: React.FC = () => {
             size="small"
         />
       </Card>
+      </div>
     </div>
   );
 };

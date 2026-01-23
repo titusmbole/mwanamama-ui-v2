@@ -6,6 +6,7 @@ import {
     PushpinOutlined, 
     CalendarOutlined 
 } from '@ant-design/icons';
+import PageHeader from '../../components/common/Layout/PageHeader';
 
 const { Title, Text } = Typography;
 const { Option } = Select;
@@ -273,13 +274,21 @@ const BranchPerformanceReport: React.FC = () => {
 
 
   return (
-    <div className="page-container p-4 min-h-screen bg-gray-50">
-      <Title level={2} className="text-gray-800">
-        🏆 Branch Performance Report <BankOutlined style={{ color: '#1890ff' }} />
-      </Title>
-      <Text type="secondary">
-        Manage and view data for **branch-wise metrics** and operational efficiency.
-      </Text>
+    <div>
+      <PageHeader 
+        title="Branch Performance Report" 
+        breadcrumbs={[
+          { title: 'Branch Performance Report' }
+        ]} 
+      />
+      
+      <div className="page-container p-4 min-h-screen bg-gray-50">
+        <Title level={2} className="text-gray-800">
+          🏆 Branch Performance Report <BankOutlined style={{ color: '#1890ff' }} />
+        </Title>
+        <Text type="secondary">
+          Manage and view data for **branch-wise metrics** and operational efficiency.
+        </Text>
 
       {/* Branch Selector and Title */}
       <Card className="mt-4 p-4 shadow-xl rounded-lg border-t-4 border-blue-100">
@@ -420,6 +429,7 @@ const BranchPerformanceReport: React.FC = () => {
             loading={loading}
         />
       </Card>
+      </div>
     </div>
   );
 };

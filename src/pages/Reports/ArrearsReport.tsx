@@ -8,6 +8,7 @@ import {
     CheckCircleOutlined, FireOutlined, BankOutlined, EyeOutlined, ArrowLeftOutlined,
     UserOutlined, PhoneOutlined, MailOutlined, SolutionOutlined, CalendarOutlined // Added icons for detail
 } from '@ant-design/icons';
+import PageHeader from '../../components/common/Layout/PageHeader';
 
 const { Title, Text } = Typography;
 const { Option } = Select;
@@ -295,12 +296,20 @@ const ArrearsReport: React.FC = () => {
 
   // Main Report View
   return (
-    <div className="page-container p-4 min-h-screen bg-gray-50">
-      <Title level={2} className="text-gray-800">
-        🔴 Loans in Arrears Report <AlertOutlined style={{ color: '#ff4d4f' }} />
-      </Title>
-      <Text type="secondary">
-        Manage and view data for **delinquent loans** and overdue amounts. Prioritize collections efforts based on aging.
+    <div>
+      <PageHeader 
+        title="Arrears Report" 
+        breadcrumbs={[
+          { title: 'Arrears Report' }
+        ]} 
+      />
+      
+      <div className="page-container p-4 min-h-screen bg-gray-50">
+        <Title level={2} className="text-gray-800">
+          🔴 Loans in Arrears Report <AlertOutlined style={{ color: '#ff4d4f' }} />
+        </Title>
+        <Text type="secondary">
+          Manage and view data for **delinquent loans** and overdue amounts. Prioritize collections efforts based on aging.
       </Text>
 
       {/* Branch Selector Card */}
@@ -428,6 +437,7 @@ const ArrearsReport: React.FC = () => {
             size="small"
         />
       </Card>
+      </div>
     </div>
   );
 };

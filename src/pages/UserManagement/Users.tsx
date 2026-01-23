@@ -7,6 +7,7 @@ import {
     TeamOutlined, SearchOutlined, UserOutlined, MailOutlined, PhoneOutlined, 
     HomeOutlined, CalendarOutlined, EyeOutlined, ArrowLeftOutlined, SolutionOutlined, CheckCircleOutlined, SyncOutlined
 } from '@ant-design/icons';
+import PageHeader from '../../components/common/Layout/PageHeader';
 
 const { Title, Text } = Typography;
 const { Option } = Select;
@@ -240,13 +241,21 @@ const Users: React.FC = () => {
 
   // Main User List View
   return (
-    <div className="page-container p-4 min-h-screen bg-gray-50">
-      <Title level={2} className="text-gray-800">
-        👥 System User Management <TeamOutlined style={{ color: '#888' }} />
-      </Title>
-      <Text type="secondary">
-        Manage and view data for **all system users**, their roles, and current operational status.
-      </Text>
+    <div>
+      <PageHeader 
+        title="Users" 
+        breadcrumbs={[
+          { title: 'Users' }
+        ]} 
+      />
+      
+      <div className="page-container p-4 min-h-screen bg-gray-50">
+        <Title level={2} className="text-gray-800">
+          👥 System User Management <TeamOutlined style={{ color: '#888' }} />
+        </Title>
+        <Text type="secondary">
+          Manage and view data for **all system users**, their roles, and current operational status.
+        </Text>
 
       <Card title={<Title level={4} className="mb-0"><SolutionOutlined /> User Directory</Title>} className="mt-4 shadow-lg border-t-4 border-gray-400">
         
@@ -289,6 +298,7 @@ const Users: React.FC = () => {
             size="middle"
         />
       </Card>
+      </div>
     </div>
   );
 };

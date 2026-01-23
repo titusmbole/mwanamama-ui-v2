@@ -5,6 +5,7 @@ import {
 import { 
     SettingOutlined, SaveOutlined,KeyOutlined, GlobalOutlined, DollarOutlined, BellOutlined, SecurityScanOutlined 
 } from '@ant-design/icons';
+import PageHeader from '../../components/common/Layout/PageHeader';
 
 const { Title, Text } = Typography;
 const { Option } = Select;
@@ -109,13 +110,21 @@ const Settings: React.FC = () => {
     };
 
     return (
-        <div className="page-container p-4 min-h-screen bg-gray-50">
-            <Title level={2} className="text-gray-800">
-                ⚙️ Application Settings <SettingOutlined style={{ color: '#555' }} />
-            </Title>
-            <Text type="secondary">
-                Manage **core system configurations** that affect all users and financial calculations.
-            </Text>
+        <div>
+            <PageHeader 
+                title="Settings" 
+                breadcrumbs={[
+                    { title: 'Settings' }
+                ]} 
+            />
+            
+            <div className="page-container p-4 min-h-screen bg-gray-50">
+                <Title level={2} className="text-gray-800">
+                    ⚙️ Application Settings <SettingOutlined style={{ color: '#555' }} />
+                </Title>
+                <Text type="secondary">
+                    Manage **core system configurations** that affect all users and financial calculations.
+                </Text>
 
             <Card className="mt-4 shadow-lg border-t-4 border-gray-400">
                 <Tabs defaultActiveKey="general" type="line" size="large">
@@ -359,6 +368,7 @@ const Settings: React.FC = () => {
                     </TabPane>
                 </Tabs>
             </Card>
+            </div>
         </div>
     );
 };

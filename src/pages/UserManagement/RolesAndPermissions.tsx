@@ -5,6 +5,7 @@ import {
 import { 
     KeyOutlined, EditOutlined,CheckOutlined, LockOutlined,SearchOutlined,UserOutlined,DeleteOutlined, UnlockOutlined, SettingOutlined, EyeOutlined, PlusOutlined 
 } from '@ant-design/icons';
+import PageHeader from '../../components/common/Layout/PageHeader';
 
 const { Title, Text } = Typography;
 
@@ -278,13 +279,21 @@ const RolesAndPermissions: React.FC = () => {
     ];
 
     return (
-        <div className="page-container p-4 min-h-screen bg-gray-50">
-            <Title level={2} className="text-gray-800">
-                🔑 Roles & Permissions Management <SettingOutlined style={{ color: '#888' }} />
-            </Title>
-            <Text type="secondary">
-                Define and manage **role-based access control (RBAC)** to ensure data security and compliance.
-            </Text>
+        <div>
+            <PageHeader 
+                title="Roles & Permissions" 
+                breadcrumbs={[
+                    { title: 'Roles & Permissions' }
+                ]} 
+            />
+            
+            <div className="page-container p-4 min-h-screen bg-gray-50">
+                <Title level={2} className="text-gray-800">
+                    🔑 Roles & Permissions Management <SettingOutlined style={{ color: '#888' }} />
+                </Title>
+                <Text type="secondary">
+                    Define and manage **role-based access control (RBAC)** to ensure data security and compliance.
+                </Text>
 
             <Card 
                 title={<Title level={4} className="mb-0"><LockOutlined /> Defined System Roles</Title>} 
@@ -332,6 +341,7 @@ const RolesAndPermissions: React.FC = () => {
                     }}
                 />
             </Card>
+            </div>
         </div>
     );
 };

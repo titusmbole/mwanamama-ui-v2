@@ -10,6 +10,7 @@ import {
     MailOutlined, PhoneOutlined, HomeOutlined, HistoryOutlined, SyncOutlined, 
     CheckCircleOutlined, WarningOutlined, CalendarOutlined // Added icons for detail view
 } from '@ant-design/icons';
+import PageHeader from '../../components/common/Layout/PageHeader';
 
 const { Title, Text } = Typography;
 const { Option } = Select;
@@ -386,13 +387,21 @@ const ClientsReport: React.FC = () => {
 
     // Main Report View
     return (
-        <div className="page-container p-4 min-h-screen bg-gray-50">
-            <Title level={2} className="text-gray-800">
-                📋 Client Report <SolutionOutlined style={{ color: '#52c41a' }} />
-            </Title>
-            <Text type="secondary">
-                Manage and view data for **client demographics** and account summaries, providing a comprehensive view of the customer base.
-            </Text>
+        <div>
+            <PageHeader 
+                title="Clients Report" 
+                breadcrumbs={[
+                    { title: 'Clients Report' }
+                ]} 
+            />
+            
+            <div className="page-container p-4 min-h-screen bg-gray-50">
+                <Title level={2} className="text-gray-800">
+                    📋 Client Report <SolutionOutlined style={{ color: '#52c41a' }} />
+                </Title>
+                <Text type="secondary">
+                    Manage and view data for **client demographics** and account summaries, providing a comprehensive view of the customer base.
+                </Text>
 
             {/* Row 1: Key Metrics (Aligned perfectly) */}
             <Row gutter={[16, 16]} className="mt-4" align="stretch">
@@ -496,6 +505,7 @@ const ClientsReport: React.FC = () => {
                     className="mt-4"
                 />
             </Card>
+            </div>
         </div>
     );
 };

@@ -6,6 +6,7 @@ import {
     HistoryOutlined, FilterOutlined, UserOutlined, ClockCircleOutlined, 
     CheckCircleOutlined, CloseCircleOutlined, PlusCircleOutlined, ExclamationCircleOutlined 
 } from '@ant-design/icons';
+import PageHeader from '../../components/common/Layout/PageHeader';
 
 const { Title, Text } = Typography;
 const { Option } = Select;
@@ -142,11 +143,19 @@ const Audit: React.FC = () => {
     ];
 
     return (
-        <div className="page-container p-4 min-h-screen bg-gray-50">
-            <Title level={2} className="text-gray-800">
-                📜 System Activity Audit Log <HistoryOutlined style={{ color: '#555' }} />
-            </Title>
-            <Text type="secondary">
+        <div>
+            <PageHeader 
+                title="Audit" 
+                breadcrumbs={[
+                    { title: 'Audit' }
+                ]} 
+            />
+            
+            <div className="page-container p-4 min-h-screen bg-gray-50">
+                <Title level={2} className="text-gray-800">
+                    📜 System Activity Audit Log <HistoryOutlined style={{ color: '#555' }} />
+                </Title>
+                <Text type="secondary">
                 View **all system events** in chronological order, including user actions and administrative changes.
             </Text>
 
@@ -213,6 +222,7 @@ const Audit: React.FC = () => {
                     scroll={{ x: 800 }} // Ensure horizontal scrolling on small screens
                 />
             </Card>
+            </div>
         </div>
     );
 };

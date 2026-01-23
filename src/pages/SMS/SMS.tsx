@@ -5,6 +5,7 @@ import {
 import { 
     MessageOutlined, SendOutlined, EditOutlined, DeleteOutlined, HistoryOutlined, FileTextOutlined, UserOutlined, ClockCircleOutlined, CheckCircleOutlined, CloseCircleOutlined, PlusOutlined, KeyOutlined 
 } from '@ant-design/icons';
+import PageHeader from '../../components/common/Layout/PageHeader';
 
 const { Title, Text } = Typography;
 const { TabPane } = Tabs;
@@ -356,13 +357,21 @@ const LogsTab: React.FC = () => {
 
 const SMS: React.FC = () => {
     return (
-        <div className="page-container p-4 min-h-screen bg-gray-50">
-            <Title level={2} className="text-gray-800">
-                📱 SMS & Notification Center <MessageOutlined style={{ color: '#888' }} />
-            </Title>
-            <Text type="secondary">
-                Manage and monitor all **outgoing and incoming SMS** for promotional and transactional communications.
-            </Text>
+        <div>
+            <PageHeader 
+                title="SMS" 
+                breadcrumbs={[
+                    { title: 'SMS' }
+                ]} 
+            />
+            
+            <div className="page-container p-4 min-h-screen bg-gray-50">
+                <Title level={2} className="text-gray-800">
+                    📱 SMS & Notification Center <MessageOutlined style={{ color: '#888' }} />
+                </Title>
+                <Text type="secondary">
+                    Manage and monitor all **outgoing and incoming SMS** for promotional and transactional communications.
+                </Text>
 
             <div className="mt-4">
                 <Tabs defaultActiveKey="compose" type="card" size="large">
@@ -385,6 +394,7 @@ const SMS: React.FC = () => {
                         <LogsTab />
                     </TabPane>
                 </Tabs>
+            </div>
             </div>
         </div>
     );

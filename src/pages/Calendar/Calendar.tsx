@@ -1,6 +1,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { Typography } from 'antd'; // Keeping AntD Typography for structure
 import { Calendar, ChevronLeft, ChevronRight, DollarSign, AlertTriangle, CheckCircle, Clock } from 'lucide-react';
+import PageHeader from '../../components/common/Layout/PageHeader';
 
 const { Title, Text } = Typography;
 
@@ -278,18 +279,26 @@ const AppCalendar: React.FC = () => {
     );
 
     return (
-        <div className="min-h-screen bg-gray-50 p-4 sm:p-8 font-sans">
-            <div className="max-w-7xl mx-auto">
-                {/* Header */}
-                <div className="mb-8">
-                    <Title level={2} className="text-gray-900 mb-1 flex items-center">
-                        <Calendar className="w-9 h-9 mr-3 text-indigo-600" />
-                        Repayment Calendar
-                    </Title>
-                    <Text type="secondary" className="text-base sm:text-lg block text-gray-500">
-                        View and manage all outstanding **loan due dates** and collection schedules in one place.
-                    </Text>
-                </div>
+        <div>
+            <PageHeader 
+                title="Calendar" 
+                breadcrumbs={[
+                    { title: 'Calendar' }
+                ]} 
+            />
+            
+            <div className="min-h-screen bg-gray-50 p-4 sm:p-8 font-sans">
+                <div className="max-w-7xl mx-auto">
+                    {/* Header */}
+                    <div className="mb-8">
+                        <Title level={2} className="text-gray-900 mb-1 flex items-center">
+                            <Calendar className="w-9 h-9 mr-3 text-indigo-600" />
+                            Repayment Calendar
+                        </Title>
+                        <Text type="secondary" className="text-base sm:text-lg block text-gray-500">
+                            View and manage all outstanding **loan due dates** and collection schedules in one place.
+                        </Text>
+                    </div>
 
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 lg:gap-8">
                     {/* Calendar View (2/3 width on desktop, full width on mobile) */}
@@ -302,6 +311,7 @@ const AppCalendar: React.FC = () => {
                         {EventsList}
                     </div>
                 </div>
+            </div>
             </div>
         </div>
     );
