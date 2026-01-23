@@ -34,7 +34,7 @@ const ViewGroupMembers: React.FC = () => {
   useEffect(() => {
     if (!groupId) {
       message.error('No group selected');
-      navigate('/onboarding/groups');
+      navigate('/groups');
       return;
     }
     loadMembers();
@@ -42,14 +42,9 @@ const ViewGroupMembers: React.FC = () => {
 
   const loadMembers = async () => {
     setLoading(true);
-    try {
-      const response = await http.get(`${APIS.GROUP_MEMBERS}/${groupId}`);
-      setMembers(response.data || []);
-    } catch (error: any) {
-      message.error(error.response?.data?.message || 'Failed to load members');
-    } finally {
-      setLoading(false);
-    }
+    const response = await http.get(`${APIS.GROUP_MEMBERS}/${groupId}`);
+    setMembers(response.data || []);
+    setLoading(false);
   };
 
   const handleRemoveMember = async (memberId: number, memberName: string) => {
@@ -61,13 +56,8 @@ const ViewGroupMembers: React.FC = () => {
       okType: 'danger',
       cancelText: 'Cancel',
       onOk: async () => {
-        try {
-          const response = await http.delete(`${APIS.REMOVE_GROUP_MEMBER}/${groupId}/${memberId}`);
-          message.success(response.data.message || 'Member removed successfully');
-          setRefreshKey(prev => prev + 1);
-        } catch (error: any) {
-          message.error(error.response?.data?.message || 'Failed to remove member');
-        }
+        await http.delete(`${APIS.REMOVE_GROUP_MEMBER}/${groupId}/${memberId}`);
+        setRefreshKey(prev => prev + 1);
       },
     });
   };
@@ -130,8 +120,7 @@ const ViewGroupMembers: React.FC = () => {
       <PageHeader 
         title={`${groupName || 'Group'} Members`}
         breadcrumbs={[
-          { title: 'Home', path: '/' },
-          { title: 'Groups', path: '/onboarding/groups' },
+          { title: 'Groups', path: '/groups' },
           { title: 'View Members' }
         ]} 
       />
@@ -141,7 +130,7 @@ const ViewGroupMembers: React.FC = () => {
         extra={
           <Button
             icon={<ArrowLeftOutlined />}
-            onClick={() => navigate('/onboarding/groups')}
+            onClick={() => navigate('/groups')}
           >
             Back to Groups
           </Button>

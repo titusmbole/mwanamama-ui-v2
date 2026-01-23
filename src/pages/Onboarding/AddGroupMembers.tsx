@@ -1,10 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { 
-  Form, Input, Button, Select, message, Space, Card, Table, Tag
+  Input, Button, Select, message, Card, Row, Col, Divider
 } from 'antd';
-import type { ColumnsType } from 'antd/es/table';
 import { 
-  SaveOutlined, ArrowLeftOutlined, DeleteOutlined
+  SaveOutlined, ArrowLeftOutlined, DeleteOutlined, PlusCircleOutlined
 } from '@ant-design/icons';
 import { useNavigate, useLocation } from 'react-router-dom';
 import PageHeader from '../../components/common/Layout/PageHeader';
@@ -15,228 +14,272 @@ import { APIS } from '../../services/APIS';
 const { Option } = Select;
 
 interface Member {
-  key: string;
-  clientId: string;
-  fullName: string;
+  name: string;
   phone: string;
-  idNumber: string;
+  idNo: string;
+  gender: string;
+  location: string;
+  groupId: number;
+  dob: string;
+  kinName: string;
+  kinId: string;
+  kinPhone: string;
 }
 
-interface Client {
-  id: number;
-  clientNumber: string;
-  fullName: string;
-  phone: string;
-  idNumber: string;
-}
+const emptyMember: Member = {
+  name: '',
+  phone: '',
+  idNo: '',
+  gender: '',
+  location: '',
+  groupId: 0,
+  dob: '',
+  kinName: '',
+  kinId: '',
+  kinPhone: '',
+};
 
 const AddGroupMembers: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { groupId, groupName } = location.state || {};
   
-  const [form] = Form.useForm();
+  const [members, setMembers] = useState<Member[]>([{ ...emptyMember, groupId: groupId || 0 }]);
   const [loading, setLoading] = useState(false);
-  const [clients, setClients] = useState<Client[]>([]);
-  const [loadingClients, setLoadingClients] = useState(false);
-  const [members, setMembers] = useState<Member[]>([]);
-  const [searchTerm, setSearchTerm] = useState('');
 
-  useEffect(() => {
-    if (!groupId) {
-      message.error('No group selected');
-      navigate('/onboarding/groups');
+  if (!groupId || !groupName) {
+    message.error('No group selected');
+    navigate('/groups');
+    return null;
+  }
+
+  const addMember = () => {
+    setMembers([...members, { ...emptyMember, groupId }]);
+  };
+
+  const removeMember = (index: number) => {
+    if (members.length === 1) {
+      message.warning('At least one member is required');
       return;
     }
-    loadAvailableClients();
-  }, [groupId]);
-
-  const loadAvailableClients = async () => {
-    setLoadingClients(true);
-    try {
-      const response = await http.get(`${APIS.AVAILABLE_CLIENTS}?groupId=${groupId}`);
-      setClients(response.data || []);
-    } catch (error: any) {
-      message.error(error.response?.data?.message || 'Failed to load clients');
-    } finally {
-      setLoadingClients(false);
-    }
+    setMembers(members.filter((_, i) => i !== index));
   };
 
-  const handleAddMember = () => {
-    form.validateFields().then((values) => {
-      const selectedClient = clients.find(c => c.id === values.clientId);
-      if (!selectedClient) return;
-
-      const exists = members.find(m => m.clientId === selectedClient.id.toString());
-      if (exists) {
-        message.warning('Client already added');
-        return;
-      }
-
-      setMembers([
-        ...members,
-        {
-          key: selectedClient.id.toString(),
-          clientId: selectedClient.id.toString(),
-          fullName: selectedClient.fullName,
-          phone: selectedClient.phone,
-          idNumber: selectedClient.idNumber,
-        },
-      ]);
-
-      form.resetFields();
-      message.success('Member added to list');
-    });
-  };
-
-  const handleRemoveMember = (clientId: string) => {
-    setMembers(members.filter(m => m.clientId !== clientId));
+  const updateMember = (index: number, field: keyof Member, value: string | number) => {
+    const updatedMembers = [...members];
+    updatedMembers[index] = { ...updatedMembers[index], [field]: value };
+    setMembers(updatedMembers);
   };
 
   const handleSubmit = async () => {
-    if (members.length === 0) {
-      message.warning('Please add at least one member');
+    // Validate members data
+    const invalidMembers = members.filter(
+      member => !member.name || !member.phone || !member.idNo || !member.gender || !member.dob
+    );
+
+    if (invalidMembers.length > 0) {
+      message.error('Please fill in all required fields for all members');
       return;
     }
 
     setLoading(true);
-    try {
-      const payload = {
-        groupId,
-        clientIds: members.map(m => parseInt(m.clientId)),
-      };
+    const payload = {
+      clients: members
+    };
 
-      const response = await http.post(APIS.ADD_GROUP_MEMBERS, payload);
-      message.success(response.data.message || 'Members added successfully');
-      navigate('/onboarding/groups');
-    } catch (error: any) {
-      message.error(error.response?.data?.message || 'Failed to add members');
-    } finally {
-      setLoading(false);
-    }
+    await http.post(APIS.CREATE_BULK_CLIENTS, payload);
+    navigate('/groups');
+    setLoading(false);
   };
-
-  const columns: ColumnsType<Member> = [
-    {
-      title: 'Full Name',
-      dataIndex: 'fullName',
-      key: 'fullName',
-    },
-    {
-      title: 'Phone',
-      dataIndex: 'phone',
-      key: 'phone',
-    },
-    {
-      title: 'ID Number',
-      dataIndex: 'idNumber',
-      key: 'idNumber',
-    },
-    {
-      title: 'Actions',
-      key: 'actions',
-      render: (_, record: Member) => (
-        <Button
-          type="link"
-          danger
-          icon={<DeleteOutlined />}
-          onClick={() => handleRemoveMember(record.clientId)}
-        >
-          Remove
-        </Button>
-      ),
-    },
-  ];
-
-  const filteredClients = clients.filter(client =>
-    client.fullName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    client.clientNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    client.phone.includes(searchTerm)
-  );
 
   return (
     <div>
       <PageHeader 
         title={`Add Members to ${groupName || 'Group'}`}
         breadcrumbs={[
-          { title: 'Home', path: '/' },
-          { title: 'Groups', path: '/onboarding/groups' },
+          { title: 'Groups', path: '/groups' },
           { title: 'Add Members' }
         ]} 
       />
 
       <PageCard
-        title="Select Members"
+        title={`Add Members to Group: ${groupName}`}
         extra={
-          <Space>
-            <Button
-              icon={<ArrowLeftOutlined />}
-              onClick={() => navigate('/onboarding/groups')}
-            >
-              Back to Groups
-            </Button>
-            <Button
-              type="primary"
-              icon={<SaveOutlined />}
-              onClick={handleSubmit}
-              loading={loading}
-              disabled={members.length === 0}
-            >
-              Save Members ({members.length})
-            </Button>
-          </Space>
+          <Button
+            icon={<ArrowLeftOutlined />}
+            onClick={() => navigate('/groups')}
+          >
+            Back to Groups
+          </Button>
         }
       >
-        <Space direction="vertical" size="large" style={{ width: '100%' }}>
-          {/* Add Member Form */}
-          <Card title="Add Member" size="small">
-            <Form form={form} layout="inline" style={{ width: '100%' }}>
-              <Form.Item
-                name="clientId"
-                style={{ flex: 1, minWidth: 300 }}
-                rules={[{ required: true, message: 'Please select a client' }]}
-              >
-                <Select
-                  showSearch
-                  placeholder="Search and select client"
-                  loading={loadingClients}
-                  onSearch={setSearchTerm}
-                  filterOption={false}
-                  style={{ width: '100%' }}
-                >
-                  {filteredClients.map(client => (
-                    <Option key={client.id} value={client.id}>
-                      {client.fullName} - {client.clientNumber} ({client.phone})
-                    </Option>
-                  ))}
-                </Select>
-              </Form.Item>
-              <Form.Item>
-                <Button type="primary" onClick={handleAddMember}>
-                  Add to List
-                </Button>
-              </Form.Item>
-            </Form>
-          </Card>
+        <div style={{ marginBottom: 16 }}>
+          <p style={{ color: '#666' }}>Fill in the details for each member you want to add to this group.</p>
+        </div>
 
-          {/* Members List */}
-          <Card 
-            title={
-              <Space>
-                <span>Members List</span>
-                <Tag color="blue">{members.length} members</Tag>
-              </Space>
-            }
+        {/* Member Forms */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+          {members.map((member, index) => (
+            <Card 
+              key={index}
+              title={`Member #${index + 1}`}
+              extra={
+                <Button
+                  type="link"
+                  danger
+                  icon={<DeleteOutlined />}
+                  onClick={() => removeMember(index)}
+                  disabled={members.length === 1}
+                >
+                  Remove
+                </Button>
+              }
+              style={{ border: '1px solid #e8e8e8' }}
+            >
+              <Row gutter={[16, 16]}>
+                {/* Personal Details */}
+                <Col xs={24} md={8}>
+                  <div style={{ marginBottom: 16 }}>
+                    <label style={{ display: 'block', marginBottom: 4, fontWeight: 500 }}>
+                      Name <span style={{ color: 'red' }}>*</span>
+                    </label>
+                    <Input
+                      value={member.name}
+                      onChange={(e) => updateMember(index, 'name', e.target.value)}
+                      placeholder="Full Name"
+                    />
+                  </div>
+                  
+                  <div style={{ marginBottom: 16 }}>
+                    <label style={{ display: 'block', marginBottom: 4, fontWeight: 500 }}>
+                      Phone <span style={{ color: 'red' }}>*</span>
+                    </label>
+                    <Input
+                      value={member.phone}
+                      onChange={(e) => updateMember(index, 'phone', e.target.value)}
+                      placeholder="Phone Number"
+                    />
+                  </div>
+                  
+                  <div>
+                    <label style={{ display: 'block', marginBottom: 4, fontWeight: 500 }}>
+                      ID Number <span style={{ color: 'red' }}>*</span>
+                    </label>
+                    <Input
+                      value={member.idNo}
+                      onChange={(e) => updateMember(index, 'idNo', e.target.value)}
+                      placeholder="ID Number"
+                    />
+                  </div>
+                </Col>
+
+                {/* Additional Details */}
+                <Col xs={24} md={8}>
+                  <div style={{ marginBottom: 16 }}>
+                    <label style={{ display: 'block', marginBottom: 4, fontWeight: 500 }}>
+                      Gender <span style={{ color: 'red' }}>*</span>
+                    </label>
+                    <Select
+                      value={member.gender || undefined}
+                      onChange={(value) => updateMember(index, 'gender', value)}
+                      placeholder="Select Gender"
+                      style={{ width: '100%' }}
+                    >
+                      <Option value="MALE">MALE</Option>
+                      <Option value="FEMALE">FEMALE</Option>
+                    </Select>
+                  </div>
+                  
+                  <div style={{ marginBottom: 16 }}>
+                    <label style={{ display: 'block', marginBottom: 4, fontWeight: 500 }}>
+                      Location
+                    </label>
+                    <Input
+                      value={member.location}
+                      onChange={(e) => updateMember(index, 'location', e.target.value)}
+                      placeholder="Location"
+                    />
+                  </div>
+                  
+                  <div>
+                    <label style={{ display: 'block', marginBottom: 4, fontWeight: 500 }}>
+                      Date of Birth <span style={{ color: 'red' }}>*</span>
+                    </label>
+                    <Input
+                      type="date"
+                      value={member.dob}
+                      onChange={(e) => updateMember(index, 'dob', e.target.value)}
+                    />
+                  </div>
+                </Col>
+
+                {/* Next of Kin Details */}
+                <Col xs={24} md={8}>
+                  <div style={{ marginBottom: 16 }}>
+                    <label style={{ display: 'block', marginBottom: 4, fontWeight: 500 }}>
+                      Next of Kin Name
+                    </label>
+                    <Input
+                      value={member.kinName}
+                      onChange={(e) => updateMember(index, 'kinName', e.target.value)}
+                      placeholder="Next of Kin Name"
+                    />
+                  </div>
+                  
+                  <div style={{ marginBottom: 16 }}>
+                    <label style={{ display: 'block', marginBottom: 4, fontWeight: 500 }}>
+                      Next of Kin ID
+                    </label>
+                    <Input
+                      value={member.kinId}
+                      onChange={(e) => updateMember(index, 'kinId', e.target.value)}
+                      placeholder="Next of Kin ID"
+                    />
+                  </div>
+                  
+                  <div>
+                    <label style={{ display: 'block', marginBottom: 4, fontWeight: 500 }}>
+                      Next of Kin Phone
+                    </label>
+                    <Input
+                      value={member.kinPhone}
+                      onChange={(e) => updateMember(index, 'kinPhone', e.target.value)}
+                      placeholder="Next of Kin Phone"
+                    />
+                  </div>
+                </Col>
+              </Row>
+            </Card>
+          ))}
+        </div>
+
+        <Divider />
+
+        {/* Add Member Button */}
+        <div style={{ marginBottom: 16 }}>
+          <Button
+            type="dashed"
+            icon={<PlusCircleOutlined />}
+            onClick={addMember}
+            block
           >
-            <Table
-              columns={columns}
-              dataSource={members}
-              pagination={false}
-              locale={{ emptyText: 'No members added yet' }}
-            />
-          </Card>
-        </Space>
+            Add Another Member
+          </Button>
+        </div>
+
+        {/* Submit Button */}
+        <div>
+          <Button
+            type="primary"
+            size="large"
+            icon={<SaveOutlined />}
+            onClick={handleSubmit}
+            loading={loading}
+            block
+          >
+            {loading ? 'Adding Members...' : `Add ${members.length} Member${members.length > 1 ? 's' : ''} to Group`}
+          </Button>
+        </div>
       </PageCard>
     </div>
   );
