@@ -89,6 +89,7 @@ export const APIS = {
 
   // ================== REPORTS ==================
   CLIENTS_REPORT: `${BASE_URL}/report/clients`,
+  CLIENT_DETAIL: `${BASE_URL}/report/clients`,
   LOANS_DUE_REPORT: `${BASE_URL}/report/loans/due`,
   LOANS_ARREARS_REPORT: `${BASE_URL}/report/loans/arrears`,
   PROFIT_AND_LOSS_REPORT: `${BASE_URL}/report/profit-and-loss`,

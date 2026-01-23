@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { 
     Typography, Card, Row, Col, Statistic, Select, Tag, Table, Progress, Input, Space, Button, 
-    Descriptions, Divider, Spin, message
+    Descriptions, Divider, Spin, message, Drawer, Skeleton
 } from 'antd';
 import { 
     TeamOutlined, SolutionOutlined, UserOutlined, SmileOutlined, 
@@ -278,79 +278,177 @@ const ClientDetailView: React.FC<{ client: ClientRecord, onBack: () => void }> =
     ];
 
     return (
-        <div className="page-container p-4 min-h-screen bg-gray-50">
-            <Button 
-                onClick={onBack} 
-                icon={<ArrowLeftOutlined />} 
-                type="dashed"
-                className="mb-4"
-            >
-                Back to Client Report
-            </Button>
-            
-            <Title level={2} className="text-gray-800 flex items-center">
-                <UserOutlined style={{ marginRight: 8, color: '#1890ff' }} /> {client.name}
-            </Title>
-            <Text type="secondary" className="block mb-4">
-                Client ID: <Tag color="geekblue" className="text-lg">{client.clientId}</Tag>
-            </Text>
+        <div className="min-h-screen p-6">
+            {/* Header Section */}
+            <div>
+                
+                {/* Client Header Card */}
+                <div className="bg-white rounded-2xl shadow-lg p-6 mb-6 border-l-4" style={{ borderLeftColor: '#ac202d' }}>
+                    <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+                        <div className="flex items-center gap-4">
+                            <div className="w-16 h-16 rounded-full flex items-center justify-center text-2xl font-bold text-white" style={{ backgroundColor: '#ac202d' }}>
+                                {client.name.charAt(0)}
+                            </div>
+                            <div>
+                                <h1 className="text-2xl md:text-3xl font-bold text-gray-800">{client.name}</h1>
+                                <div className="flex items-center gap-2 mt-1">
+                                    <span className="text-sm text-gray-500">Client ID:</span>
+                                    <span className="px-3 py-1 text-xs font-semibold rounded-full" style={{ backgroundColor: '#ac202d20', color: '#ac202d' }}>
+                                        {client.clientId}
+                                    </span>
+                                    <Tag color={client.status === 'Active' ? 'green' : client.status === 'Inactive' ? 'default' : 'red'} className="ml-2">
+                                        {client.status}
+                                    </Tag>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
 
-            <Row gutter={[16, 16]} className="mt-4">
-                {/* Section 1: Key Financials */}
-                <Col xs={24} lg={8}>
-                    <Card title="Financial Snapshot" className="h-full border-t-4 border-green-500 shadow-md">
-                        <Statistic title="Total Savings Balance" value={client.savingsBalance} formatter={formatCurrency} prefix={<BankOutlined />} valueStyle={{ color: '#3f8600' }} />
-                        <Divider className="my-3" />
-                        <Statistic title="Active Loans" value={client.activeLoans} prefix={<DollarCircleOutlined />} />
-                        <Divider className="my-3" />
-                        <Statistic title="Onboard Date" value={client.onboardDate} prefix={<CalendarOutlined />} />
-                    </Card>
-                </Col>
+                {/* Financial Overview Cards */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+                    <div className="bg-white rounded-xl shadow-md p-6 border-l-4 hover:shadow-lg transition-shadow" style={{ borderLeftColor: '#ac202d' }}>
+                        <div className="flex items-center justify-between mb-3">
+                            <div className="w-12 h-12 rounded-lg flex items-center justify-center" style={{ backgroundColor: '#ac202d10' }}>
+                                <BankOutlined className="text-xl" style={{ color: '#ac202d' }} />
+                            </div>
+                        </div>
+                        <p className="text-sm text-gray-600 font-medium mb-1">Total Savings</p>
+                        <p className="text-2xl font-bold text-gray-900">{formatCurrency(client.savingsBalance)}</p>
+                    </div>
 
-                {/* Section 2: Personal and Contact Information */}
-                <Col xs={24} lg={16}>
-                    <Card title="Personal & Contact Information" className="h-full border-t-4 border-blue-500 shadow-md">
-                        <Descriptions column={{ xs: 1, sm: 2, lg: 3 }} bordered size="small">
-                            <Descriptions.Item label="Age">{client.age}</Descriptions.Item>
-                            <Descriptions.Item label="Gender">{client.gender === 'F' ? 'Female' : 'Male'}</Descriptions.Item>
-                            <Descriptions.Item label="Branch">{client.branch}</Descriptions.Item>
-                            <Descriptions.Item label="Credit Officer">{client.creditOfficer}</Descriptions.Item>
-                            <Descriptions.Item label="Group">{client.groupName}</Descriptions.Item>
-                            <Descriptions.Item label="ID Number">{client.idNumber}</Descriptions.Item>
-                            <Descriptions.Item label="Status">
-                                <Tag color={client.status === 'Active' ? 'green' : client.status === 'Inactive' ? 'default' : 'red'}>
-                                    {client.status}
-                                </Tag>
-                            </Descriptions.Item>
-                            <Descriptions.Item label="Phone"><PhoneOutlined /> {client.phone || 'N/A'}</Descriptions.Item>
-                            <Descriptions.Item label="Email"><MailOutlined /> {client.email || 'N/A'}</Descriptions.Item>
-                            <Descriptions.Item label="Address" span={3}><HomeOutlined /> {client.address || 'N/A'}</Descriptions.Item>
-                        </Descriptions>
-                    </Card>
-                </Col>
-            </Row>
+                    <div className="bg-white rounded-xl shadow-md p-6 border-l-4 hover:shadow-lg transition-shadow" style={{ borderLeftColor: '#ac202d' }}>
+                        <div className="flex items-center justify-between mb-3">
+                            <div className="w-12 h-12 rounded-lg flex items-center justify-center" style={{ backgroundColor: '#ac202d10' }}>
+                                <DollarCircleOutlined className="text-xl" style={{ color: '#ac202d' }} />
+                            </div>
+                        </div>
+                        <p className="text-sm text-gray-600 font-medium mb-1">Active Loans</p>
+                        <p className="text-2xl font-bold text-gray-900">{client.activeLoans}</p>
+                    </div>
 
-            {/* Section 3: Loan History */}
-            <Card title={<Title level={4} className="mb-0 mt-4"><DollarCircleOutlined /> Loan History ({latestLoans.length})</Title>} className="mt-4 shadow-lg border-t-4 border-orange-500">
-                <Table 
-                    columns={loanColumns} 
-                    dataSource={latestLoans}
-                    rowKey="id"
-                    pagination={false}
-                    size="small"
-                />
-            </Card>
+                    <div className="bg-white rounded-xl shadow-md p-6 border-l-4 hover:shadow-lg transition-shadow" style={{ borderLeftColor: '#ac202d' }}>
+                        <div className="flex items-center justify-between mb-3">
+                            <div className="w-12 h-12 rounded-lg flex items-center justify-center" style={{ backgroundColor: '#ac202d10' }}>
+                                <CalendarOutlined className="text-xl" style={{ color: '#ac202d' }} />
+                            </div>
+                        </div>
+                        <p className="text-sm text-gray-600 font-medium mb-1">Onboard Date</p>
+                        <p className="text-2xl font-bold text-gray-900">{client.onboardDate}</p>
+                    </div>
+                </div>
 
-            {/* Section 4: Transaction History */}
-            <Card title={<Title level={4} className="mb-0 mt-4"><HistoryOutlined /> Recent Transactions ({transactionHistory.length})</Title>} className="mt-4 shadow-lg border-t-4 border-purple-500">
-                <Table 
-                    columns={transactionColumns} 
-                    dataSource={transactionHistory}
-                    rowKey="date" // Using date as key, assume unique for mock
-                    pagination={{ pageSize: 5 }}
-                    size="small"
-                />
-            </Card>
+                {/* Personal Information Card */}
+                <div className="bg-white rounded-2xl shadow-lg p-6 mb-6">
+                    <h2 className="text-xl font-bold text-gray-800 mb-4 flex items-center gap-2">
+                        <UserOutlined style={{ color: '#ac202d' }} />
+                        Personal & Contact Information
+                    </h2>
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                        <div className="p-4 bg-gray-50 rounded-lg border border-gray-200">
+                            <p className="text-xs text-gray-500 mb-1">Age</p>
+                            <p className="text-base font-semibold text-gray-800">{client.age} years</p>
+                        </div>
+                        <div className="p-4 bg-gray-50 rounded-lg border border-gray-200">
+                            <p className="text-xs text-gray-500 mb-1">Gender</p>
+                            <p className="text-base font-semibold text-gray-800">{client.gender === 'F' ? 'Female' : 'Male'}</p>
+                        </div>
+                        <div className="p-4 bg-gray-50 rounded-lg border border-gray-200">
+                            <p className="text-xs text-gray-500 mb-1">ID Number</p>
+                            <p className="text-base font-semibold text-gray-800">{client.idNumber}</p>
+                        </div>
+                        <div className="p-4 bg-gray-50 rounded-lg border border-gray-200">
+                            <p className="text-xs text-gray-500 mb-1">Phone</p>
+                            <p className="text-base font-semibold text-gray-800 flex items-center gap-2">
+                                <PhoneOutlined className="text-green-500" />
+                                {client.phone || 'N/A'}
+                            </p>
+                        </div>
+                        <div className="p-4 bg-gray-50 rounded-lg border border-gray-200">
+                            <p className="text-xs text-gray-500 mb-1">Email</p>
+                            <p className="text-base font-semibold text-gray-800 flex items-center gap-2 break-all">
+                                <MailOutlined className="text-blue-500" />
+                                {client.email || 'N/A'}
+                            </p>
+                        </div>
+                        <div className="p-4 bg-gray-50 rounded-lg border border-gray-200">
+                            <p className="text-xs text-gray-500 mb-1">Branch</p>
+                            <p className="text-base font-semibold text-gray-800">{client.branch}</p>
+                        </div>
+                        <div className="p-4 bg-gray-50 rounded-lg border border-gray-200">
+                            <p className="text-xs text-gray-500 mb-1">Credit Officer</p>
+                            <p className="text-base font-semibold text-gray-800">{client.creditOfficer}</p>
+                        </div>
+                        <div className="p-4 bg-gray-50 rounded-lg border border-gray-200">
+                            <p className="text-xs text-gray-500 mb-1">Group</p>
+                            <p className="text-base font-semibold text-gray-800">{client.groupName}</p>
+                        </div>
+                        <div className="p-4 bg-gray-50 rounded-lg border border-gray-200 md:col-span-2 lg:col-span-1">
+                            <p className="text-xs text-gray-500 mb-1">Address</p>
+                            <p className="text-base font-semibold text-gray-800 flex items-start gap-2">
+                                <HomeOutlined className="text-orange-500 mt-1" />
+                                <span>{client.address || 'N/A'}</span>
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                {/* Loan History Section */}
+                <div className="bg-white rounded-2xl shadow-lg p-6 mb-6">
+                    <h2 className="text-xl font-bold text-gray-800 mb-4 flex items-center gap-2">
+                        <DollarCircleOutlined style={{ color: '#ac202d' }} />
+                        Loan History
+                        <span className="ml-2 px-3 py-1 text-xs font-semibold rounded-full" style={{ backgroundColor: '#ac202d20', color: '#ac202d' }}>
+                            {latestLoans.length} {latestLoans.length === 1 ? 'Loan' : 'Loans'}
+                        </span>
+                    </h2>
+                    {latestLoans.length > 0 ? (
+                        <div className="overflow-x-auto">
+                            <Table 
+                                columns={loanColumns} 
+                                dataSource={latestLoans}
+                                rowKey="id"
+                                pagination={false}
+                                size="small"
+                                className="border border-gray-200 rounded-lg"
+                            />
+                        </div>
+                    ) : (
+                        <div className="text-center py-8 text-gray-500">
+                            <DollarCircleOutlined className="text-4xl mb-2" />
+                            <p>No loan history available</p>
+                        </div>
+                    )}
+                </div>
+
+                {/* Transaction History Section */}
+                <div className="bg-white rounded-2xl shadow-lg p-6 mb-6">
+                    <h2 className="text-xl font-bold text-gray-800 mb-4 flex items-center gap-2">
+                        <HistoryOutlined style={{ color: '#ac202d' }} />
+                        Recent Transactions
+                        <span className="ml-2 px-3 py-1 text-xs font-semibold rounded-full" style={{ backgroundColor: '#ac202d20', color: '#ac202d' }}>
+                            {transactionHistory.length} {transactionHistory.length === 1 ? 'Transaction' : 'Transactions'}
+                        </span>
+                    </h2>
+                    {transactionHistory.length > 0 ? (
+                        <div className="overflow-x-auto">
+                            <Table 
+                                columns={transactionColumns} 
+                                dataSource={transactionHistory}
+                                rowKey={(record, index) => `${record.date}-${index}`}
+                                pagination={{ pageSize: 10, showSizeChanger: true }}
+                                size="small"
+                                className="border border-gray-200 rounded-lg"
+                            />
+                        </div>
+                    ) : (
+                        <div className="text-center py-8 text-gray-500">
+                            <HistoryOutlined className="text-4xl mb-2" />
+                            <p>No transaction history available</p>
+                        </div>
+                    )}
+                </div>
+            </div>
         </div>
     );
 };
@@ -365,6 +463,8 @@ const ClientsReport: React.FC = () => {
     const [clientData, setClientData] = useState<ClientRecord[]>([]);
     const [groups, setGroups] = useState<{ id: number; name: string }[]>([]);
     const [loadingGroups, setLoadingGroups] = useState(false);
+    const [loadingClientDetail, setLoadingClientDetail] = useState(false);
+    const [drawerVisible, setDrawerVisible] = useState(false);
 
     // Load groups on mount
     useEffect(() => {
@@ -408,32 +508,80 @@ const ClientsReport: React.FC = () => {
             savingsBalance: client.saving,
             onboardDate: client.dob || '',
             groupId: client.groupId, // Preserve groupId for filtering
+            id: client.id, // Preserve API ID for detail endpoint
         } as any));
         setClientData(transformedClients);
     };
 
-    const handleViewClient = (record: ClientRecord) => {
-        // Create a detailed client with dummy transaction/loan data for viewing
-        const detailedClient: ClientRecord = {
-            ...record,
-            address: record.idNumber ? `${record.idNumber.slice(0, 2)} Main Street, ${record.branch}` : 'Address not available',
-            email: `${record.name.toLowerCase().replace(/\s+/g, '.')}@example.com`,
-            latestLoans: record.activeLoans > 0 ? [
-                { 
-                    id: `L${Math.floor(Math.random() * 90000) + 10000}`, 
-                    amount: 50000, 
-                    disbursementDate: '2024-05-10', 
-                    status: 'Active', 
-                    purpose: 'Working Capital' 
+    const handleViewClient = async (record: ClientRecord) => {
+        setDrawerVisible(true);
+        setLoadingClientDetail(true);
+        try {
+            // Get client ID from the record
+            const clientId = (record as any).id || record.clientId;
+            
+            // Add 500ms delay for skeleton display
+            const [response] = await Promise.all([
+                http.get(`${APIS.CLIENT_DETAIL}/${clientId}`),
+                new Promise(resolve => setTimeout(resolve, 500))
+            ]);
+            
+            const apiData = response.data;
+            
+            // Map transaction types to display format
+            const mapTransactionType = (type: string): 'Deposit' | 'Withdrawal' | 'Repayment' => {
+                switch (type) {
+                    case 'SAVINGS':
+                    case 'REGISTRATION_FEE':
+                        return 'Deposit';
+                    case 'LOAN_REPAYMENT':
+                        return 'Repayment';
+                    case 'LOAN_DISBURSEMENT':
+                        return 'Withdrawal';
+                    default:
+                        return 'Deposit';
                 }
-            ] : [],
-            transactionHistory: [
-                { date: '2025-11-20', type: 'Repayment', amount: 5000, description: 'Loan installment payment' },
-                { date: '2025-11-15', type: 'Deposit', amount: 2000, description: 'Savings deposit' },
-            ]
-        };
-        
-        setSelectedClient(detailedClient);
+            };
+            
+            // Transform API response to ClientRecord format
+            const detailedClient: ClientRecord = {
+                clientId: apiData.clientNumber,
+                name: apiData.fullName,
+                phone: apiData.phone,
+                idNumber: apiData.idNumber,
+                gender: apiData.gender === 'MALE' ? 'M' : 'F',
+                creditOfficer: apiData.creditOfficer,
+                groupName: apiData.group,
+                status: apiData.status as 'Active' | 'Inactive' | 'Suspended',
+                branch: apiData.branch,
+                age: apiData.age,
+                activeLoans: apiData.loanHistory?.filter((loan: any) => loan.status === 'ACTIVE').length || 0,
+                savingsBalance: apiData.totalSavings,
+                onboardDate: apiData.onboardDate,
+                address: apiData.location,
+                email: apiData.email,
+                latestLoans: apiData.loanHistory?.map((loan: any) => ({
+                    id: loan.loanId?.toString() || '',
+                    amount: loan.amount,
+                    disbursementDate: loan.date,
+                    status: loan.status as 'Active' | 'Closed' | 'Default',
+                    purpose: loan.purpose,
+                })) || [],
+                transactionHistory: apiData.transactions?.map((txn: any) => ({
+                    date: txn.date.split('T')[0], // Extract date part
+                    type: mapTransactionType(txn.type),
+                    amount: txn.amount,
+                    description: txn.description,
+                })) || [],
+            };
+            
+            setSelectedClient(detailedClient);
+        } catch (error: any) {
+            message.error(error.response?.data?.message || 'Failed to load client details');
+            setDrawerVisible(false);
+        } finally {
+            setLoadingClientDetail(false);
+        }
     };
 
     const clientColumns: any = [
@@ -526,10 +674,10 @@ const ClientsReport: React.FC = () => {
         },
     ];
 
-    // Conditionally render the detailed view or the main report
-    if (selectedClient) {
-        return <ClientDetailView client={selectedClient} onBack={() => setSelectedClient(null)} />;
-    }
+    const handleCloseDrawer = () => {
+        setDrawerVisible(false);
+        setSelectedClient(null);
+    };
 
     // Main Report View
     return (
@@ -626,6 +774,64 @@ const ClientsReport: React.FC = () => {
                 />
             </Card>
             </div>
+
+            {/* Client Detail Drawer */}
+            <Drawer
+                title={null}
+                placement="right"
+                onClose={handleCloseDrawer}
+                open={drawerVisible}
+                width="80%"
+                styles={{ body: { padding: 0 } }}
+            >
+                {loadingClientDetail ? (
+                    <div className="p-6">
+                        {/* Header Skeleton */}
+                        <div className="mb-6">
+                            <Skeleton.Button active size="default" style={{ width: 150 }} className="mb-4" />
+                            <div className="bg-white rounded-2xl shadow-lg p-6 mb-6">
+                                <div className="flex items-center gap-4">
+                                    <Skeleton.Avatar active size={64} />
+                                    <div className="flex-1">
+                                        <Skeleton active paragraph={{ rows: 1 }} />
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Financial Cards Skeleton */}
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+                            {[1, 2, 3].map((i) => (
+                                <div key={i} className="bg-white rounded-xl shadow-md p-6">
+                                    <Skeleton active paragraph={{ rows: 2 }} />
+                                </div>
+                            ))}
+                        </div>
+
+                        {/* Personal Info Skeleton */}
+                        <div className="bg-white rounded-2xl shadow-lg p-6 mb-6">
+                            <Skeleton active paragraph={{ rows: 1 }} className="mb-4" />
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                                {[1, 2, 3, 4, 5, 6].map((i) => (
+                                    <div key={i} className="p-4 bg-gray-50 rounded-lg">
+                                        <Skeleton active paragraph={{ rows: 1 }} />
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+
+                        {/* Tables Skeleton */}
+                        <div className="bg-white rounded-2xl shadow-lg p-6 mb-6">
+                            <Skeleton active paragraph={{ rows: 4 }} />
+                        </div>
+                        <div className="bg-white rounded-2xl shadow-lg p-6 mb-6">
+                            <Skeleton active paragraph={{ rows: 4 }} />
+                        </div>
+                    </div>
+                ) : selectedClient ? (
+                    <ClientDetailView client={selectedClient} onBack={handleCloseDrawer} />
+                ) : null}
+            </Drawer>
         </div>
     );
 };
