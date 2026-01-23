@@ -25,6 +25,7 @@ interface Group {
   meetingTime: string;
   meetingFrequency: string;
   location: string;
+  googlePin?: string;
   branch: string;
   branchId: number;
   creditOfficer: string;
@@ -49,6 +50,8 @@ const Groups: React.FC = () => {
   const [refreshKey, setRefreshKey] = useState(0);
   const [users, setUsers] = useState<SelectOption[]>([]);
   const [loadingUsers, setLoadingUsers] = useState(false);
+  const [branches, setBranches] = useState<SelectOption[]>([]);
+  const [loadingBranches, setLoadingBranches] = useState(false);
   const [createForm] = Form.useForm();
   const [editForm] = Form.useForm();
 
@@ -71,6 +74,7 @@ const Groups: React.FC = () => {
     if (isAdmin) {
       loadUsers();
     }
+    loadBranches();
   }, [isAdmin]);
 
   const loadUsers = async () => {
@@ -89,6 +93,22 @@ const Groups: React.FC = () => {
     }
   };
 
+  const loadBranches = async () => {
+    try {
+      setLoadingBranches(true);
+      const response = await http.get(APIS.UNPAGINATED_BRANCHES);
+      const branchOptions: SelectOption[] = response.data.map((b: any) => ({
+        label: b.branchName,
+        value: b.id,
+      }));
+      setBranches(branchOptions);
+    } catch (error: any) {
+      message.error(error.response?.data?.message || 'Failed to load branches');
+    } finally {
+      setLoadingBranches(false);
+    }
+  };
+
   const handleEdit = (group: Group) => {
     setSelectedGroup(group);
     editForm.setFieldsValue({
@@ -97,7 +117,9 @@ const Groups: React.FC = () => {
       meetingTime: group.meetingTime,
       meetingFrequency: group.meetingFrequency,
       location: group.location,
+      googlePin: group.googlePin || '',
       creditOfficer: group.creditOfficerId,
+      branch: group.branchId,
     });
     setEditModalOpen(true);
   };
@@ -168,7 +190,9 @@ const Groups: React.FC = () => {
       meetingTime: values.meetingTime,
       meetingFrequency: values.meetingFrequency,
       location: values.location,
-      creditOfficer: isAdmin ? values.creditOfficer : selectedGroup.creditOfficerId,
+      googlePin: values.googlePin || '',
+      creditOfficerId: isAdmin ? values.creditOfficer : selectedGroup.creditOfficerId,
+      branchId: values.branch || selectedGroup.branchId,
     };
 
     await http.put(`${APIS.UPDATE_GROUP}/${selectedGroup.id}`, payload);
@@ -472,6 +496,29 @@ const Groups: React.FC = () => {
           rules={[{ required: true, message: 'Location is required' }]}
         >
           <Input placeholder="Enter Location" />
+        </Form.Item>
+
+        <Form.Item
+          name="googlePin"
+          label="Google Pin (Optional)"
+        >
+          <Input placeholder="Enter Google Pin" />
+        </Form.Item>
+
+        <Form.Item
+          name="branch"
+          label="Branch"
+          rules={[{ required: true, message: 'Branch is required' }]}
+        >
+          <Select
+            placeholder="Select Branch"
+            options={branches}
+            loading={loadingBranches}
+            showSearch
+            filterOption={(input, option) =>
+              (option?.label ?? '').toLowerCase().includes(input.toLowerCase())
+            }
+          />
         </Form.Item>
 
         {isAdmin && (

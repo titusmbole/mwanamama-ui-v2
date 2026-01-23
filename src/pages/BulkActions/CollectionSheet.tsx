@@ -1,16 +1,18 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { 
-  Form, Input, Button, Table, Card, Statistic, Row, Col, message, Spin, Select, InputNumber
+  Form, Input, Button, Table, Card, Statistic, Row, Col, message, Spin, InputNumber, Badge, Empty, Typography, Skeleton
 } from 'antd';
 import { 
   SaveOutlined, CalendarOutlined, UserOutlined, EnvironmentOutlined,
-  DollarCircleOutlined
+  DollarCircleOutlined, ArrowLeftOutlined, ArrowRightOutlined, TeamOutlined, CheckOutlined
 } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import PageHeader from '../../components/common/Layout/PageHeader';
 import PageCard from '../../components/common/PageCard/PageCard';
 import http from '../../services/httpInterceptor';
 import { APIS } from '../../services/APIS';
+
+const { Text } = Typography;
 
 interface Group {
   id: number;
@@ -24,7 +26,7 @@ interface Group {
 interface Client {
   id: number;
   fullName: string;
-  memberNumber: string;
+  clientNumber: string;
   loanId?: number;
   loanAmount?: number;
 }
@@ -46,6 +48,7 @@ const CollectionSheet: React.FC = () => {
   const [mpesaAmount, setMpesaAmount] = useState(0);
   const [mpesaCode, setMpesaCode] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
+  const [showCollectionForm, setShowCollectionForm] = useState(false);
 
   useEffect(() => {
     loadGroups();
@@ -68,47 +71,55 @@ const CollectionSheet: React.FC = () => {
   };
 
   const loadGroupInfo = async (groupId: number) => {
-    try {
-      setLoadingInfo(true);
-      const response = await http.get<{ clients: Client[]; mpesaPayment?: number; mpesaCode?: string }>(
-        `${APIS.LOAD_GROUPS_INFO}/${groupId}`
-      );
-      
-      const initialData: CollectionRow[] = response.data.clients.map((member: Client) => ({
-        ...member,
-        ekinaSavings: 0,
-        drawdownAccount: 0,
-        registration: 0,
-      }));
-      
-      setCollectionData(initialData);
-      setMpesaAmount(response.data.mpesaPayment || 0);
-      setMpesaCode(response.data.mpesaCode || '');
-    } catch (error: any) {
-      message.error(
-        error.response?.status === 403
-          ? 'Not authorized to perform this action!'
-          : error.response?.data?.message || 'Failed to load group info'
-      );
-    } finally {
-      setLoadingInfo(false);
-    }
+    setLoadingInfo(true);
+    const response = await http.get<{ clients: Client[]; mpesaPayment?: number; mpesaCode?: string }>(
+      `${APIS.LOAD_GROUPS_INFO}/${groupId}`
+    );
+    
+    // Add 500ms delay for skeleton loading
+    await new Promise(resolve => setTimeout(resolve, 500));
+    
+    const initialData: CollectionRow[] = response.data.clients.map((member: Client) => ({
+      ...member,
+      ekinaSavings: 0,
+      drawdownAccount: 0,
+      registration: 0,
+    }));
+    
+    setCollectionData(initialData);
+    setMpesaAmount(response.data.mpesaPayment || 0);
+    setMpesaCode(response.data.mpesaCode || '');
+    setShowCollectionForm(true);
+    setLoadingInfo(false);
   };
 
-  const handleGroupChange = (groupId: number) => {
-    const group = groups.find(g => g.id === groupId);
-    if (group) {
-      setSelectedGroup(group);
-      loadGroupInfo(groupId);
-      // Reset form fields
-      form.setFieldsValue({
-        receiptNumber: '',
-        chequeNumber: '',
-        accountNumber: '',
-        payBill: '',
-        mpesaCode: '',
-      });
+  const handleGroupSelect = (group: Group) => {
+    setSelectedGroup(group);
+  };
+
+  const handleContinue = () => {
+    if (!selectedGroup) {
+      message.warning('Please select a group first');
+      return;
     }
+    loadGroupInfo(selectedGroup.id);
+    // Reset form fields
+    form.setFieldsValue({
+      receiptNumber: '',
+      chequeNumber: '',
+      accountNumber: '',
+      payBill: '',
+      mpesaCode: '',
+    });
+  };
+
+  const handleBackToGroups = () => {
+    setShowCollectionForm(false);
+    setSelectedGroup(null);
+    setCollectionData([]);
+    setMpesaAmount(0);
+    setMpesaCode('');
+    form.resetFields();
   };
 
   const handleInputChange = (memberId: number, field: keyof CollectionRow, value: number) => {
@@ -193,15 +204,15 @@ const CollectionSheet: React.FC = () => {
   const filteredData = searchTerm
     ? collectionData.filter(member =>
         member.fullName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        member.memberNumber?.includes(searchTerm)
+        member.clientNumber?.includes(searchTerm)
       )
     : collectionData;
 
   const columns: ColumnsType<CollectionRow> = [
     {
       title: 'Member No.',
-      dataIndex: 'memberNumber',
-      key: 'memberNumber',
+      dataIndex: 'clientNumber',
+      key: 'clientNumber',
       width: 120,
     },
     {
@@ -264,7 +275,7 @@ const CollectionSheet: React.FC = () => {
   return (
     <div>
       <PageHeader 
-        title="Collection Sheet" 
+        title={showCollectionForm ? `${selectedGroup?.groupName} Collection Sheet` : 'Select a Group'}
         breadcrumbs={[
           { title: 'Home', path: '/' },
           { title: 'Bulk Actions', path: '#' },
@@ -273,36 +284,171 @@ const CollectionSheet: React.FC = () => {
       />
 
       <PageCard>
-        {/* Group Selection */}
-        <div style={{ marginBottom: 24 }}>
-          <Select
-            showSearch
-            placeholder="Select a group"
-            style={{ width: '100%', maxWidth: 400 }}
-            loading={loadingGroups}
-            onChange={handleGroupChange}
-            filterOption={(input, option) =>
-              (option?.label ?? '').toLowerCase().includes(input.toLowerCase())
-            }
-            options={groups.map(group => ({
-              label: `${group.groupName} (${group.groupNumber})`,
-              value: group.id,
-            }))}
-          />
-        </div>
-
-        {selectedGroup && (
+        {!showCollectionForm ? (
           <>
-            {/* Group Info */}
-            <Card style={{ marginBottom: 24, backgroundColor: '#f5f5f5' }}>
+            {loadingGroups ? (
+              <Row gutter={[16, 16]}>
+                {[1, 2, 3, 4, 5, 6, 7, 8].map(i => (
+                  <Col xs={24} sm={12} md={8} lg={6} key={i}>
+                    <Card>
+                      <Skeleton active paragraph={{ rows: 4 }} />
+                    </Card>
+                  </Col>
+                ))}
+              </Row>
+            ) : groups.length === 0 ? (
+              <Empty 
+                description="No groups available"
+                style={{ marginTop: '60px' }}
+              />
+            ) : (
+              <>
+                <Row gutter={[16, 16]}>
+                  {groups.map(group => (
+                    <Col xs={24} sm={12} md={8} lg={6} key={group.id}>
+                      <Card
+                        hoverable
+                        onClick={() => handleGroupSelect(group)}
+                        style={{
+                          borderRadius: '12px',
+                          border: selectedGroup?.id === group.id 
+                            ? '2px solid #1890ff' 
+                            : '1px solid #e8e8e8',
+                          background: selectedGroup?.id === group.id 
+                            ? 'linear-gradient(135deg, #e6f7ff 0%, #bae7ff 100%)' 
+                            : '#ffffff',
+                          boxShadow: selectedGroup?.id === group.id
+                            ? '0 8px 24px rgba(24, 144, 255, 0.2)'
+                            : '0 2px 8px rgba(0, 0, 0, 0.06)',
+                          transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                          cursor: 'pointer',
+                          transform: selectedGroup?.id === group.id ? 'translateY(-4px)' : 'translateY(0)',
+                        }}
+                        bodyStyle={{ padding: '24px' }}
+                      >
+                        <div style={{ marginBottom: '16px' }}>
+                          <div style={{ 
+                            display: 'flex', 
+                            justifyContent: 'space-between', 
+                            alignItems: 'flex-start',
+                            marginBottom: '4px'
+                          }}>
+                            <Text strong style={{ fontSize: '17px', color: '#262626', lineHeight: '24px' }}>
+                              {group.groupName}
+                            </Text>
+                            {selectedGroup?.id === group.id && (
+                              <div style={{
+                                width: '24px',
+                                height: '24px',
+                                borderRadius: '50%',
+                                backgroundColor: '#1890ff',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                flexShrink: 0
+                              }}>
+                                <CheckOutlined style={{ color: '#fff', fontSize: '14px' }} />
+                              </div>
+                            )}
+                          </div>
+                          <Text type="secondary" style={{ fontSize: '12px', color: '#8c8c8c' }}>
+                            {group.groupNumber}
+                          </Text>
+                        </div>
+                        
+                        <div style={{ 
+                          display: 'flex',
+                          alignItems: 'center',
+                          padding: '8px 12px',
+                          backgroundColor: selectedGroup?.id === group.id ? 'rgba(24, 144, 255, 0.1)' : '#fafafa',
+                          borderRadius: '8px',
+                          marginBottom: '12px'
+                        }}>
+                          <TeamOutlined style={{ fontSize: '16px', color: '#1890ff', marginRight: '8px' }} />
+                          <Badge 
+                            count={group.memberCount} 
+                            style={{ backgroundColor: '#1890ff' }}
+                            showZero
+                          />
+                          <Text style={{ marginLeft: '8px', fontSize: '13px', color: '#595959', fontWeight: 500 }}>
+                            Members
+                          </Text>
+                        </div>
+                        
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                          {group.meetingDay && (
+                            <div style={{ display: 'flex', alignItems: 'center' }}>
+                              <CalendarOutlined style={{ fontSize: '14px', marginRight: '8px', color: '#52c41a' }} />
+                              <Text style={{ fontSize: '13px', color: '#595959' }}>{group.meetingDay}</Text>
+                            </div>
+                          )}
+                          
+                          {group.location && (
+                            <div style={{ display: 'flex', alignItems: 'center' }}>
+                              <EnvironmentOutlined style={{ fontSize: '14px', marginRight: '8px', color: '#fa8c16' }} />
+                              <Text style={{ fontSize: '13px', color: '#595959' }} ellipsis>
+                                {group.location}
+                              </Text>
+                            </div>
+                          )}
+                        </div>
+                      </Card>
+                    </Col>
+                  ))}
+                </Row>
+                
+                <div style={{ 
+                  marginTop: '32px',
+                  paddingBottom: '24px',
+                  display: 'flex',
+                  justifyContent: 'flex-end',
+                  alignItems: 'center'
+                }}>
+                  <div>
+                    <Button
+                      type="primary"
+                      size="large"
+                      icon={<ArrowRightOutlined />}
+                      onClick={handleContinue}
+                      disabled={!selectedGroup}
+                      style={{ minWidth: '180px' }}
+                      iconPosition="end"
+                    >
+                      Continue
+                    </Button>
+                  </div>
+                </div>
+              </>
+            )}
+          </>
+        ) : (
+          loadingInfo ? (
+            <>
+              <Skeleton active paragraph={{ rows: 2 }} style={{ marginBottom: 24 }} />
+              <Skeleton active paragraph={{ rows: 8 }} />
+            </>
+          ) : (
+            <>
+              <div style={{ marginBottom: 16 }}>
+                <Button 
+                  icon={<ArrowLeftOutlined />} 
+                  onClick={handleBackToGroups}
+                  size="large"
+                >
+                  Back to Groups
+                </Button>
+              </div>
+              
+              {/* Group Info */}
+              <Card style={{ marginBottom: 24, backgroundColor: '#f5f5f5' }}>
               <Row gutter={16}>
                 <Col xs={24} sm={8}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                     <UserOutlined style={{ fontSize: 24, color: '#1890ff' }} />
                     <div>
-                      <div style={{ fontWeight: 500 }}>{selectedGroup.groupName}</div>
+                      <div style={{ fontWeight: 500 }}>{selectedGroup?.groupName}</div>
                       <div style={{ fontSize: 12, color: '#666' }}>
-                        {selectedGroup.memberCount} Members
+                        {selectedGroup?.memberCount} Members
                       </div>
                     </div>
                   </div>
@@ -313,7 +459,7 @@ const CollectionSheet: React.FC = () => {
                     <div>
                       <div style={{ fontWeight: 500 }}>Meeting Day</div>
                       <div style={{ fontSize: 12, color: '#666' }}>
-                        {selectedGroup.meetingDay}
+                        {selectedGroup?.meetingDay}
                       </div>
                     </div>
                   </div>
@@ -324,7 +470,7 @@ const CollectionSheet: React.FC = () => {
                     <div>
                       <div style={{ fontWeight: 500 }}>Location</div>
                       <div style={{ fontSize: 12, color: '#666' }}>
-                        {selectedGroup.location}
+                        {selectedGroup?.location}
                       </div>
                     </div>
                   </div>
@@ -458,7 +604,8 @@ const CollectionSheet: React.FC = () => {
                 </Button>
               </Form.Item>
             </Form>
-          </>
+            </>
+          )
         )}
       </PageCard>
     </div>
