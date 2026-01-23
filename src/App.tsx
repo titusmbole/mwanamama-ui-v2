@@ -62,9 +62,9 @@ const App: React.FC = () => {
   // Configure global message settings
   useEffect(() => {
     message.config({
-      top: 80, // Position from top
-      duration: 3, // Auto-close after 3 seconds
-      maxCount: 3, // Maximum number of messages to show at once
+      top: 80,
+      duration: 3, 
+      maxCount: 3,
     });
   }, []);
 

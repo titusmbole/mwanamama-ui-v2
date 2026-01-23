@@ -28,28 +28,28 @@ const settingsCards: SettingsCard[] = [
         key: 'profile',
         title: 'My Profile',
         description: 'View and update your personal information',
-        icon: <UserOutlined style={{ fontSize: 24, color: '#1890ff' }} />,
+        icon: <UserOutlined style={{ fontSize: 24, color: '#ac202d', border: '2px solid #ac202d', borderRadius: '50%', padding: '8px' }} />,
         category: 'Account'
     },
     {
         key: 'password',
         title: 'Change Password',
         description: 'Update your account password',
-        icon: <LockOutlined style={{ fontSize: 24, color: '#52c41a' }} />,
+        icon: <LockOutlined style={{ fontSize: 24, color: '#ac202d', border: '2px solid #ac202d', borderRadius: '50%', padding: '8px' }} />,
         category: 'Account'
     },
     {
         key: 'loginActivities',
         title: 'Login Activities',
         description: 'See all login activities and sessions',
-        icon: <HistoryOutlined style={{ fontSize: 24, color: '#fa8c16' }} />,
+        icon: <HistoryOutlined style={{ fontSize: 24, color: '#ac202d', border: '2px solid #ac202d', borderRadius: '50%', padding: '8px' }} />,
         category: 'Security'
     },
     {
         key: 'twoFactor',
         title: 'Two-Factor Authentication',
         description: 'Add extra security to your account',
-        icon: <SafetyOutlined style={{ fontSize: 24, color: '#f5222d' }} />,
+        icon: <SafetyOutlined style={{ fontSize: 24, color: '#ac202d', border: '2px solid #ac202d', borderRadius: '50%', padding: '8px' }} />,
         category: 'Security'
     },
     
@@ -58,21 +58,21 @@ const settingsCards: SettingsCard[] = [
         key: 'general',
         title: 'General Settings',
         description: 'Platform identity and regional formats',
-        icon: <GlobalOutlined style={{ fontSize: 24, color: '#722ed1' }} />,
+        icon: <GlobalOutlined style={{ fontSize: 24, color: '#ac202d', border: '2px solid #ac202d', borderRadius: '50%', padding: '8px' }} />,
         category: 'System'
     },
     {
         key: 'financial',
         title: 'Financial Defaults',
         description: 'Loan calculation and payment settings',
-        icon: <DollarOutlined style={{ fontSize: 24, color: '#13c2c2' }} />,
+        icon: <DollarOutlined style={{ fontSize: 24, color: '#ac202d', border: '2px solid #ac202d', borderRadius: '50%', padding: '8px' }} />,
         category: 'System'
     },
     {
         key: 'notifications',
         title: 'Notifications',
         description: 'Email, SMS and alert preferences',
-        icon: <BellOutlined style={{ fontSize: 24, color: '#eb2f96' }} />,
+        icon: <BellOutlined style={{ fontSize: 24, color: '#ac202d', border: '2px solid #ac202d', borderRadius: '50%', padding: '8px' }} />,
         category: 'System'
     },
     
@@ -81,14 +81,14 @@ const settingsCards: SettingsCard[] = [
         key: 'language',
         title: 'Language & Region',
         description: 'Set your preferred language and timezone',
-        icon: <EnvironmentOutlined style={{ fontSize: 24, color: '#faad14' }} />,
+        icon: <EnvironmentOutlined style={{ fontSize: 24, color: '#ac202d', border: '2px solid #ac202d', borderRadius: '50%', padding: '8px' }} />,
         category: 'Preferences'
     },
     {
         key: 'appearance',
         title: 'Appearance',
         description: 'Customize theme and display options',
-        icon: <SettingOutlined style={{ fontSize: 24, color: '#1890ff' }} />,
+        icon: <SettingOutlined style={{ fontSize: 24, color: '#ac202d', border: '2px solid #ac202d', borderRadius: '50%', padding: '8px' }} />,
         category: 'Preferences'
     },
 ];
@@ -603,7 +603,7 @@ const Settings: React.FC = () => {
                                                         {card.description}
                                                     </Text>
                                                 </div>
-                                                <RightOutlined style={{ color: '#bfbfbf' }} />
+                                                <RightOutlined style={{ color: '#ac202d' }} />
                                             </div>
                                         </Card>
                                     </Col>
