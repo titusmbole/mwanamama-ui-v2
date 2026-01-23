@@ -15,15 +15,13 @@ interface PageHeaderProps {
 }
 
 const PageHeader: React.FC<PageHeaderProps> = ({ title, breadcrumbs }) => {
-  const { user } = useAuth();
-
   return (
     <div
       style={{
         display: 'flex',
         justifyContent: 'space-between',
         alignItems: 'center',
-        marginBottom: 24,
+        // marginBottom: 24,
         padding: '16px 0',
       }}
     >

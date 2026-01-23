@@ -157,29 +157,11 @@ const ModernDashboard = () => {
       />
       
       <div style={{ 
-        minHeight: '100vh', 
-        background: 'linear-gradient(135deg, #f5f7fa 0%, #e8f0fe 100%)',
-        padding: isMobile ? '16px' : '24px'
+        // minHeight: '100vh', 
+        // background: 'linear-gradient(135deg, #f5f7fa 0%, #e8f0fe 100%)',
       }}>
         <div style={{ maxWidth: 1600, margin: '0 auto' }}>
-          {/* Header Section */}
-          <Space direction="vertical" size="small" style={{ marginBottom: isMobile ? 20 : 32, width: '100%' }}>
-            <Flex align="center" gap={isMobile ? 8 : 12} wrap="wrap">
-              <div style={{
-                width: 4,
-                height: isMobile ? 24 : 32,
-                background: 'linear-gradient(180deg, #1677ff 0%, #722ed1 100%)',
-                borderRadius: 2
-              }} />
-              <Title level={isMobile ? 3 : 2} style={{ margin: 0, fontSize: isMobile ? 24 : 32 }}>
-                Loan System Dashboard
-              </Title>
-            </Flex>
-            <Text type="secondary" style={{ marginLeft: isMobile ? 12 : 16, fontSize: isMobile ? 13 : 15, display: 'block' }}>
-              Real-time overview of your financial metrics and operations
-            </Text>
-          </Space>
-
+       
         {/* Statistics Cards */}
         <Row gutter={[isMobile ? 12 : 16, isMobile ? 12 : 16]} style={{ marginBottom: isMobile ? 16 : 24 }}>
           <Col xs={24} sm={12} lg={6}>

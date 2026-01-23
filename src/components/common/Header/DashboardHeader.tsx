@@ -56,6 +56,16 @@ const DashboardHeader: React.FC<DashboardHeaderProps> = ({
     }
   };
 
+  // Get user initials from name
+  const getUserInitials = (name?: string) => {
+    if (!name) return "U";
+    const nameParts = name.trim().split(" ");
+    if (nameParts.length === 1) {
+      return nameParts[0].charAt(0).toUpperCase();
+    }
+    return (nameParts[0].charAt(0) + nameParts[nameParts.length - 1].charAt(0)).toUpperCase();
+  };
+
   const userMenuItems: MenuProps["items"] = [
     { key: "1", label: "Profile", icon: <UserOutlined /> },
     { key: "2", label: "Settings", icon: <SettingOutlined /> },
@@ -100,11 +110,7 @@ const DashboardHeader: React.FC<DashboardHeaderProps> = ({
             }}
             style={{ marginRight: isMobile ? 8 : 16 }}
           />
-          {!isMobile && (
-            <h2 style={{ margin: 0, color: '#1890ff', fontSize: 18 }}>
-              Dashboard
-            </h2>
-          )}
+         
         </div>
 
         {/* Right Section */}
@@ -116,38 +122,20 @@ const DashboardHeader: React.FC<DashboardHeaderProps> = ({
           justifyContent: "flex-end" 
         }}>
           
-          {/* Search */}
-          {!isMobile ? (
-            <Input
-              placeholder="Search loans, clients, reports..."
-              prefix={<SearchOutlined />}
-              style={{ maxWidth: 300, width: "100%" }}
-              onPressEnter={(e) => handleSearch((e.target as HTMLInputElement).value)}
-            />
-          ) : (
-            <Button
-              type="text"
-              icon={<SearchOutlined style={{ fontSize: 18 }} />}
-              onClick={() => setSearchVisible(true)}
-            />
-          )}
-
-          {/* Notifications */}
-          <Badge count={5} dot>
-            <BellOutlined style={{ fontSize: 20, cursor: "pointer", color: "#333" }} />
-          </Badge>
+          
 
           {/* User Dropdown */}
           <Dropdown menu={{ items: userMenuItems, onClick: handleMenuClick }} placement="bottomRight" arrow>
             <Space style={{ cursor: "pointer" }}>
               <Avatar 
-                size={isMobile ? 32 : 40} 
-                icon={<UserOutlined />} 
-                style={{ backgroundColor: "#ff4d4f" }} 
-              />
+                size={isMobile ? 32 : 35} 
+                style={{ backgroundColor: "#ff4d4f", color: "#fff" }} 
+              >
+                {getUserInitials(user?.name)}
+              </Avatar>
               {!isMobile && (
                 <span style={{ fontWeight: 500, color: "#333" }}>
-                  {user?.email || user?.username || 'User'}
+                  {user?.name || 'User'}
                 </span>
               )}
             </Space>
