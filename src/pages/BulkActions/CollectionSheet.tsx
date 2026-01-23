@@ -1,10 +1,10 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { 
-  Form, Input, Button, Table, Card, Statistic, Row, Col, message, Spin, InputNumber, Badge, Empty, Typography, Skeleton
+  Form, Input, Button, Table, Card, Statistic, Row, Col, message, Spin, InputNumber, Badge, Empty, Typography, Skeleton, Alert
 } from 'antd';
 import { 
   SaveOutlined, CalendarOutlined, UserOutlined, EnvironmentOutlined,
-  DollarCircleOutlined, ArrowLeftOutlined, ArrowRightOutlined, TeamOutlined, CheckOutlined
+  DollarCircleOutlined, ArrowLeftOutlined, ArrowRightOutlined, TeamOutlined, CheckOutlined, SearchOutlined
 } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import PageHeader from '../../components/common/Layout/PageHeader';
@@ -49,25 +49,31 @@ const CollectionSheet: React.FC = () => {
   const [mpesaCode, setMpesaCode] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
   const [showCollectionForm, setShowCollectionForm] = useState(false);
+  const [alertMessage, setAlertMessage] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
+
+  const filteredGroups = useMemo(() => {
+    if (!searchTerm) return groups;
+    
+    const term = searchTerm.toLowerCase();
+    return groups.filter(group => 
+      group.groupName.toLowerCase().includes(term) ||
+      group.groupNumber.toLowerCase().includes(term) ||
+      group.location?.toLowerCase().includes(term) ||
+      group.meetingDay?.toLowerCase().includes(term)
+    );
+  }, [groups, searchTerm]);
 
   useEffect(() => {
     loadGroups();
   }, []);
 
   const loadGroups = async () => {
-    try {
-      setLoadingGroups(true);
-      const response = await http.get(APIS.LOAD_GROUPS_UNPAGINATED);
-      setGroups(response.data);
-    } catch (error: any) {
-      message.error(
-        error.response?.status === 403
-          ? 'Not authorized to perform this action!'
-          : error.response?.data?.message || 'Failed to load groups'
-      );
-    } finally {
-      setLoadingGroups(false);
-    }
+    setLoadingGroups(true);
+    const response = await http.get<Group[]>(APIS.LOAD_GROUPS_UNPAGINATED);
+    // Add 500ms delay for skeleton loading
+    await new Promise(resolve => setTimeout(resolve, 500));
+    setGroups(response.data);
+    setLoadingGroups(false);
   };
 
   const loadGroupInfo = async (groupId: number) => {
@@ -155,6 +161,8 @@ const CollectionSheet: React.FC = () => {
     }
 
     setSubmitting(true);
+    setAlertMessage(null); // Clear any previous alerts
+    
     try {
       const collectionSheetNumber = Math.floor(1000000000 + Math.random() * 9000000000);
 
@@ -183,7 +191,12 @@ const CollectionSheet: React.FC = () => {
       };
 
       const response = await http.post(APIS.POST_COLLECTIONS, payload);
-      message.success(response.data.message || 'Collection sheet posted successfully');
+      
+      // Show success alert
+      setAlertMessage({
+        type: 'success',
+        message: response.data.message || 'Collection sheet posted successfully'
+      });
 
       // Reset form and reload
       form.resetFields();
@@ -191,11 +204,11 @@ const CollectionSheet: React.FC = () => {
       setMpesaCode('');
       loadGroupInfo(selectedGroup.id);
     } catch (error: any) {
-      message.error(
-        error.response?.status === 403
-          ? 'Not authorized to perform this action!'
-          : error.response?.data?.message || 'Failed to save collection data'
-      );
+      // Show error alert
+      setAlertMessage({
+        type: 'error',
+        message: error.response?.data?.message || 'Failed to save collection data'
+      });
     } finally {
       setSubmitting(false);
     }
@@ -303,8 +316,27 @@ const CollectionSheet: React.FC = () => {
               />
             ) : (
               <>
-                <Row gutter={[16, 16]}>
-                  {groups.map(group => (
+                <div style={{ marginBottom: 24 }}>
+                  <Input.Search
+                    placeholder="Search by group name, number, location, or meeting day..."
+                    prefix={<SearchOutlined />}
+                    size="large"
+                    allowClear
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    style={{ maxWidth: 600 }}
+                  />
+                </div>
+                
+                {filteredGroups.length === 0 ? (
+                  <Empty 
+                    description="No groups match your search"
+                    style={{ marginTop: '60px' }}
+                  />
+                ) : (
+                <>
+                  <Row gutter={[16, 16]}>
+                  {filteredGroups.map(group => (
                     <Col xs={24} sm={12} md={8} lg={6} key={group.id}>
                       <Card
                         hoverable
@@ -418,6 +450,8 @@ const CollectionSheet: React.FC = () => {
                     </Button>
                   </div>
                 </div>
+                </>
+                )}
               </>
             )}
           </>
@@ -438,6 +472,17 @@ const CollectionSheet: React.FC = () => {
                   Back to Groups
                 </Button>
               </div>
+              
+              {alertMessage && (
+                <Alert
+                  message={alertMessage.message}
+                  type={alertMessage.type}
+                  showIcon
+                  closable
+                  onClose={() => setAlertMessage(null)}
+                  style={{ marginBottom: 24 }}
+                />
+              )}
               
               {/* Group Info */}
               <Card style={{ marginBottom: 24, backgroundColor: '#f5f5f5' }}>
