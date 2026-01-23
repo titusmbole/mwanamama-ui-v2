@@ -186,9 +186,7 @@ const AllPayments: React.FC = () => {
       <PageHeader 
         title="M-Pesa Payments" 
         breadcrumbs={[
-          { title: 'Home', path: '/' },
-          { title: 'Payments', path: '#' },
-          { title: 'All Payments' }
+          { title: 'Payments' }
         ]} 
       />
 

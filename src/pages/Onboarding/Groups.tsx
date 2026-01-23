@@ -341,8 +341,6 @@ const Groups: React.FC = () => {
       <PageHeader 
         title="Groups" 
         breadcrumbs={[
-          { title: 'Home', path: '/' },
-          { title: 'Onboarding', path: '#' },
           { title: 'Groups' }
         ]} 
       />

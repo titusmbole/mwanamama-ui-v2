@@ -120,8 +120,6 @@ const ManualRepayment: React.FC = () => {
       <PageHeader 
         title="Manual Repayment" 
         breadcrumbs={[
-          { title: 'Home', path: '/' },
-          { title: 'Bulk Actions', path: '#' },
           { title: 'Manual Repayment' }
         ]} 
       />

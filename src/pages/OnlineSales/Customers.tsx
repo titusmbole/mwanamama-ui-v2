@@ -190,8 +190,6 @@ const Customers: React.FC = () => {
       <PageHeader 
         title="Online Customers" 
         breadcrumbs={[
-          { title: 'Home', path: '/' },
-          { title: 'Online Sales', path: '#' },
           { title: 'Customers' }
         ]} 
       />

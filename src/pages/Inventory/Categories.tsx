@@ -247,8 +247,6 @@ const Categories: React.FC = () => {
       <PageHeader 
         title="Categories" 
         breadcrumbs={[
-          { title: 'Home', path: '/' },
-          { title: 'Inventory', path: '#' },
           { title: 'Categories' }
         ]} 
       />

@@ -351,8 +351,6 @@ const Users: React.FC = () => {
       <PageHeader 
         title="Users" 
         breadcrumbs={[
-          { title: 'Home', path: '/' },
-          { title: 'User Management', path: '#' },
           { title: 'Users' }
         ]} 
       />

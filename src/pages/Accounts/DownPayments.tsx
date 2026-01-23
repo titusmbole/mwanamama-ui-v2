@@ -97,8 +97,6 @@ const DownPayments: React.FC = () => {
       <PageHeader 
         title="Down Payment Accounts" 
         breadcrumbs={[
-          { title: 'Home', path: '/' },
-          { title: 'Accounts', path: '#' },
           { title: 'Down Payments' }
         ]} 
       />

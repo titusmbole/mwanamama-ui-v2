@@ -164,8 +164,6 @@ const ProfitAndLossReport: React.FC = () => {
       <PageHeader 
         title="Profit & Loss Report" 
         breadcrumbs={[
-          { title: 'Home', path: '/' },
-          { title: 'Reports', path: '#' },
           { title: 'Profit & Loss' }
         ]} 
       />

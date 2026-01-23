@@ -146,8 +146,6 @@ const DepositSheet: React.FC = () => {
       <PageHeader 
         title="Deposit Sheets" 
         breadcrumbs={[
-          { title: 'Home', path: '/' },
-          { title: 'Bulk Actions', path: '#' },
           { title: 'Deposit Sheets' }
         ]} 
       />

@@ -265,8 +265,6 @@ const StockAdjustments: React.FC = () => {
       <PageHeader 
         title="Stock Adjustments" 
         breadcrumbs={[
-          { title: 'Home', path: '/' },
-          { title: 'Inventory', path: '#' },
           { title: 'Stock' }
         ]} 
       />

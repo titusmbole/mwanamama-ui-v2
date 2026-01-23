@@ -386,8 +386,6 @@ const CollectionSheet: React.FC = () => {
       <PageHeader 
         title={showCollectionForm ? `${selectedGroup?.groupName} Collection Sheet` : 'Select a Group'}
         breadcrumbs={[
-          { title: 'Home', path: '/' },
-          { title: 'Bulk Actions', path: '#' },
           { title: 'Collection Sheet' }
         ]} 
       />

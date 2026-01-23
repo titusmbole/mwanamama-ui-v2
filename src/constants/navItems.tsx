@@ -78,16 +78,7 @@ export const navItems: NavItem[] = [
     ],
   },
 
-  // ================= Motor Bikes =================
-  {
-    name: "Motor Bikes",
-    icon: <FaMotorcycle />,
-    subItems: [
-      { name: "Models", path: "/bike/models", pro: false },
-      { name: "Motor Bikes", path: "/bike/list", pro: false },
-      { name: "Spare Parts", path: "/bike/spare", pro: false },
-    ],
-  },
+ 
 
   // ================= Inventory =================
   {

@@ -197,8 +197,6 @@ const RolesAndPermissions: React.FC = () => {
       <PageHeader 
         title="Roles & Permissions" 
         breadcrumbs={[
-          { title: 'Home', path: '/' },
-          { title: 'User Management', path: '#' },
           { title: 'Roles & Permissions' }
         ]} 
       />

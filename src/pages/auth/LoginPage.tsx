@@ -26,12 +26,6 @@ const LoginPage: React.FC = () => {
       
       login(token);
       
-      api.success({
-        message: "Login Successful!",
-        description: `Welcome back, ${username}!`,
-        placement: "topRight",
-      });
-      
       setTimeout(() => navigate("/dashboard"), 500);
     } catch (error: any) {
     } finally {

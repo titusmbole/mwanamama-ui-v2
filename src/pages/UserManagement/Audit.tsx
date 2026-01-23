@@ -133,8 +133,6 @@ const Audit: React.FC = () => {
       <PageHeader 
         title="Audit Trail" 
         breadcrumbs={[
-          { title: 'Home', path: '/' },
-          { title: 'User Management', path: '#' },
           { title: 'Audit Trail' }
         ]} 
       />

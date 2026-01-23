@@ -48,10 +48,7 @@ import Orders from "./pages/Inventory/Orders";
 import Sales from "./pages/OnlineSales/Sales";
 import Customers from "./pages/OnlineSales/Customers";
 
-// Motor Bikes Pages
-import MotorbikeModels from "./pages/MotorBikes/Models";
-import MotorBikesList from "./pages/MotorBikes/MotorBikes";
-import SpareParts from "./pages/MotorBikes/SpareParts";
+
 
 // Public/Auth pages
 import LoginPage from "./pages/auth/LoginPage";
@@ -132,10 +129,7 @@ const App: React.FC = () => {
             <Route path="sales/sale" element={<Sales />} />
             <Route path="individual/customer" element={<Customers />} />
 
-            {/* Motor Bikes */}
-            <Route path="bike/models" element={<MotorbikeModels />} />
-            <Route path="bike/list" element={<MotorBikesList />} />
-            <Route path="bike/spare" element={<SpareParts />} />
+           
 
             {/* User Management */}
             <Route path="users/all" element={<Users />} />

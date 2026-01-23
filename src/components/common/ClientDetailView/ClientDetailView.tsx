@@ -146,7 +146,7 @@ const ClientDetailView: React.FC<ClientDetailViewProps> = ({
                     {showBackButton && (
                         <Skeleton.Button active size="default" style={{ width: 150 }} className="mb-4" />
                     )}
-                    <div className="bg-white rounded-2xl shadow-lg p-6 mb-6">
+                    <div className="bg-white rounded-2xl shadow-sm p-6 mb-6">
                         <div className="flex items-center gap-4">
                             <Skeleton.Avatar active size={64} />
                             <div className="flex-1">
@@ -166,7 +166,7 @@ const ClientDetailView: React.FC<ClientDetailViewProps> = ({
                 </div>
 
                 {/* Personal Info Skeleton */}
-                <div className="bg-white rounded-2xl shadow-lg p-6 mb-6">
+                <div className="bg-white rounded-2xl shadow-sm p-6 mb-6">
                     <Skeleton active paragraph={{ rows: 1 }} className="mb-4" />
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                         {[1, 2, 3, 4, 5, 6].map((i) => (
@@ -178,10 +178,10 @@ const ClientDetailView: React.FC<ClientDetailViewProps> = ({
                 </div>
 
                 {/* Tables Skeleton */}
-                <div className="bg-white rounded-2xl shadow-lg p-6 mb-6">
+                <div className="bg-white rounded-2xl shadow-sm p-6 mb-6">
                     <Skeleton active paragraph={{ rows: 4 }} />
                 </div>
-                <div className="bg-white rounded-2xl shadow-lg p-6 mb-6">
+                <div className="bg-white rounded-2xl shadow-sm p-6 mb-6">
                     <Skeleton active paragraph={{ rows: 4 }} />
                 </div>
             </div>
@@ -250,7 +250,7 @@ const ClientDetailView: React.FC<ClientDetailViewProps> = ({
             {/* Header Section */}
             <div>
                 {/* Client Header Card */}
-                <div className="bg-white rounded-2xl shadow-lg p-6 mb-6 border-l-4" style={{ borderLeftColor: '#ac202d' }}>
+                <div className="bg-white rounded-2xl shadow-sm p-6 mb-6 border-l-4" style={{ borderLeftColor: '#ac202d' }}>
                     <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
                         <div className="flex items-center gap-4">
                             <div className="w-16 h-16 rounded-full flex items-center justify-center text-2xl font-bold text-white" style={{ backgroundColor: '#ac202d' }}>
@@ -274,7 +274,7 @@ const ClientDetailView: React.FC<ClientDetailViewProps> = ({
 
                 {/* Financial Overview Cards */}
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
-                    <div className="bg-white rounded-xl shadow-md p-6 border-l-4 hover:shadow-lg transition-shadow" style={{ borderLeftColor: '#ac202d' }}>
+                    <div className="bg-white rounded-xl shadow-md p-6 border-l-4 hover:shadow-sm transition-shadow" style={{ borderLeftColor: '#ac202d' }}>
                         <div className="flex items-center justify-between mb-3">
                             <div className="w-12 h-12 rounded-lg flex items-center justify-center" style={{ backgroundColor: '#ac202d10' }}>
                                 <BankOutlined className="text-xl" style={{ color: '#ac202d' }} />
@@ -284,7 +284,7 @@ const ClientDetailView: React.FC<ClientDetailViewProps> = ({
                         <p className="text-2xl font-bold text-gray-900">{formatCurrency(client.savingsBalance)}</p>
                     </div>
 
-                    <div className="bg-white rounded-xl shadow-md p-6 border-l-4 hover:shadow-lg transition-shadow" style={{ borderLeftColor: '#ac202d' }}>
+                    <div className="bg-white rounded-xl shadow-md p-6 border-l-4 hover:shadow-sm transition-shadow" style={{ borderLeftColor: '#ac202d' }}>
                         <div className="flex items-center justify-between mb-3">
                             <div className="w-12 h-12 rounded-lg flex items-center justify-center" style={{ backgroundColor: '#ac202d10' }}>
                                 <DollarCircleOutlined className="text-xl" style={{ color: '#ac202d' }} />
@@ -294,7 +294,7 @@ const ClientDetailView: React.FC<ClientDetailViewProps> = ({
                         <p className="text-2xl font-bold text-gray-900">{client.activeLoans}</p>
                     </div>
 
-                    <div className="bg-white rounded-xl shadow-md p-6 border-l-4 hover:shadow-lg transition-shadow" style={{ borderLeftColor: '#ac202d' }}>
+                    <div className="bg-white rounded-xl shadow-md p-6 border-l-4 hover:shadow-sm transition-shadow" style={{ borderLeftColor: '#ac202d' }}>
                         <div className="flex items-center justify-between mb-3">
                             <div className="w-12 h-12 rounded-lg flex items-center justify-center" style={{ backgroundColor: '#ac202d10' }}>
                                 <CalendarOutlined className="text-xl" style={{ color: '#ac202d' }} />
@@ -306,7 +306,7 @@ const ClientDetailView: React.FC<ClientDetailViewProps> = ({
                 </div>
 
                 {/* Personal Information Card */}
-                <div className="bg-white rounded-2xl shadow-lg p-6 mb-6">
+                <div className="bg-white rounded-2xl shadow-sm p-6 mb-6">
                     <h2 className="text-xl font-bold text-gray-800 mb-4 flex items-center gap-2">
                         <UserOutlined style={{ color: '#ac202d' }} />
                         Personal & Contact Information
@@ -361,7 +361,7 @@ const ClientDetailView: React.FC<ClientDetailViewProps> = ({
                 </div>
 
                 {/* Loan History Section */}
-                <div className="bg-white rounded-2xl shadow-lg p-6 mb-6">
+                <div className="bg-white rounded-2xl shadow-sm p-6 mb-6">
                     <h2 className="text-xl font-bold text-gray-800 mb-4 flex items-center gap-2">
                         <DollarCircleOutlined style={{ color: '#ac202d' }} />
                         Loan History
@@ -389,7 +389,7 @@ const ClientDetailView: React.FC<ClientDetailViewProps> = ({
                 </div>
 
                 {/* Transaction History Section */}
-                <div className="bg-white rounded-2xl shadow-lg p-6 mb-6">
+                <div className="bg-white rounded-2xl shadow-sm p-6 mb-6">
                     <h2 className="text-xl font-bold text-gray-800 mb-4 flex items-center gap-2">
                         <HistoryOutlined style={{ color: '#ac202d' }} />
                         Recent Transactions

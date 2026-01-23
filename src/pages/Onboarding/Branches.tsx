@@ -185,8 +185,6 @@ const Branches: React.FC = () => {
       <PageHeader 
         title="Branches" 
         breadcrumbs={[
-          { title: 'Home', path: '/' },
-          { title: 'Onboarding', path: '#' },
           { title: 'Branches' }
         ]} 
       />

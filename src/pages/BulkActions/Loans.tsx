@@ -247,8 +247,6 @@ const Loans: React.FC = () => {
       <PageHeader 
         title="Loans" 
         breadcrumbs={[
-          { title: 'Home', path: '/' },
-          { title: 'Bulk Actions', path: '#' },
           { title: 'Loans' }
         ]} 
       />

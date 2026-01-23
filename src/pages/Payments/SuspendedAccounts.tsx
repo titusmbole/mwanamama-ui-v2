@@ -186,9 +186,7 @@ const SuspendedAccounts: React.FC = () => {
       <PageHeader 
         title="Suspended Payments" 
         breadcrumbs={[
-          { title: 'Home', path: '/' },
-          { title: 'Payments', path: '#' },
-          { title: 'Suspended Accounts' }
+          { title: 'Suspended Payments' }
         ]} 
       />
 
