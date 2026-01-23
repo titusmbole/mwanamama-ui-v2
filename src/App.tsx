@@ -1,61 +1,68 @@
 // src/App.tsx
-import React, { useEffect } from "react";
+import React, { useEffect, Suspense, lazy } from "react";
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 import { message, ConfigProvider } from "antd";
 import { AuthProvider } from "./context/AuthContext";
 import ProtectedRoute from "./routes/ProtectedRoute";
 import Layout from "../src/components/common/Layout/Layout";
+import PageLoader from "./components/common/PageLoader";
+import NotificationProvider from "./context/NotificationProvider";
+import { useNProgress } from "./utils/nprogress";
 
-// Pages
-import Dashboard from "./pages/Dashboard/Dashboard";
-import Branches from "./pages/Onboarding/Branches";
-import Groups from "./pages/Onboarding/Groups";
-import AddGroupMembers from "./pages/Onboarding/AddGroupMembers";
-import ViewGroupMembers from "./pages/Onboarding/ViewGroupMembers";
-import DepositSheet from "./pages/BulkActions/DepositSheet";
-import CollectionSheet from "./pages/BulkActions/CollectionSheet";
-import Loans from "./pages/BulkActions/Loans";
-import ManualRepayment from "./pages/BulkActions/ManualRepayment";
-import EMICalculator from "./pages/BulkActions/EMICalculator";
-import AllPayments from "./pages/Payments/AllPayments";
-import SuspendedAccounts from "./pages/Payments/SuspendedAccounts";
-import DownPayments from "./pages/Accounts/DownPayments";
-import LoanAccounts from "./pages/Accounts/LoanAccounts";
-import Users from "./pages/UserManagement/Users";
-import RolesAndPermissions from "./pages/UserManagement/RolesAndPermissions";
-import Audit from "./pages/UserManagement/Audit";
-import SMS from "./pages/SMS/SMS";
-import Calendar from "./pages/Calendar/Calendar";
-import ClientsReport from "./pages/Reports/ClientsReport";
-import DuesReport from "./pages/Reports/DuesReport";
-import ArrearsReport from "./pages/Reports/ArrearsReport";
-import BranchPerformanceReport from "./pages/Reports/BranchPerformanceReport";
-import ProfitAndLossReport from "./pages/Reports/ProfitAndLossReport";
-import SalesPerformanceReport from "./pages/Reports/SalesPerformanceReport";
-import Settings from "./pages/Settings/Settings";
-import NotFound from "./pages/NotFound/NotFound";
-
-// Inventory Pages
-import ProductCatalog from "./pages/Inventory/ProductCatalog";
-import Categories from "./pages/Inventory/Categories";
-import StockAdjustments from "./pages/Inventory/StockAdjustments";
-import Brands from "./pages/Inventory/Brands";
-import Suppliers from "./pages/Inventory/Suppliers";
-import Purchases from "./pages/Inventory/Purchases";
-import Orders from "./pages/Inventory/Orders";
-
-// Online Sales Pages
-import Sales from "./pages/OnlineSales/Sales";
-import Customers from "./pages/OnlineSales/Customers";
-
-
-
-// Public/Auth pages
+// Eager load critical pages
 import LoginPage from "./pages/auth/LoginPage";
 import ForgotPassword from "./pages/auth/ForgotPassword";
-import NotificationProvider from "./context/NotificationProvider";
+import NotFound from "./pages/NotFound/NotFound";
+
+// Lazy load error pages
+const ServerError = lazy(() => import("./pages/ErrorPages/ServerError"));
+const Unauthorized = lazy(() => import("./pages/ErrorPages/Unauthorized"));
+
+// Lazy load main pages
+const Dashboard = lazy(() => import("./pages/Dashboard/Dashboard"));
+const Branches = lazy(() => import("./pages/Onboarding/Branches"));
+const Groups = lazy(() => import("./pages/Onboarding/Groups"));
+const AddGroupMembers = lazy(() => import("./pages/Onboarding/AddGroupMembers"));
+const ViewGroupMembers = lazy(() => import("./pages/Onboarding/ViewGroupMembers"));
+const DepositSheet = lazy(() => import("./pages/BulkActions/DepositSheet"));
+const CollectionSheet = lazy(() => import("./pages/BulkActions/CollectionSheet"));
+const Loans = lazy(() => import("./pages/BulkActions/Loans"));
+const ManualRepayment = lazy(() => import("./pages/BulkActions/ManualRepayment"));
+const EMICalculator = lazy(() => import("./pages/BulkActions/EMICalculator"));
+const AllPayments = lazy(() => import("./pages/Payments/AllPayments"));
+const SuspendedAccounts = lazy(() => import("./pages/Payments/SuspendedAccounts"));
+const DownPayments = lazy(() => import("./pages/Accounts/DownPayments"));
+const LoanAccounts = lazy(() => import("./pages/Accounts/LoanAccounts"));
+const Users = lazy(() => import("./pages/UserManagement/Users"));
+const RolesAndPermissions = lazy(() => import("./pages/UserManagement/RolesAndPermissions"));
+const Audit = lazy(() => import("./pages/UserManagement/Audit"));
+const SMS = lazy(() => import("./pages/SMS/SMS"));
+const Calendar = lazy(() => import("./pages/Calendar/Calendar"));
+const ClientsReport = lazy(() => import("./pages/Reports/ClientsReport"));
+const DuesReport = lazy(() => import("./pages/Reports/DuesReport"));
+const ArrearsReport = lazy(() => import("./pages/Reports/ArrearsReport"));
+const BranchPerformanceReport = lazy(() => import("./pages/Reports/BranchPerformanceReport"));
+const ProfitAndLossReport = lazy(() => import("./pages/Reports/ProfitAndLossReport"));
+const SalesPerformanceReport = lazy(() => import("./pages/Reports/SalesPerformanceReport"));
+const Settings = lazy(() => import("./pages/Settings/Settings"));
+
+// Lazy load Inventory Pages
+const ProductCatalog = lazy(() => import("./pages/Inventory/ProductCatalog"));
+const Categories = lazy(() => import("./pages/Inventory/Categories"));
+const StockAdjustments = lazy(() => import("./pages/Inventory/StockAdjustments"));
+const Brands = lazy(() => import("./pages/Inventory/Brands"));
+const Suppliers = lazy(() => import("./pages/Inventory/Suppliers"));
+const Purchases = lazy(() => import("./pages/Inventory/Purchases"));
+const Orders = lazy(() => import("./pages/Inventory/Orders"));
+
+// Lazy load Online Sales Pages
+const Sales = lazy(() => import("./pages/OnlineSales/Sales"));
+const Customers = lazy(() => import("./pages/OnlineSales/Customers"));
 
 const App: React.FC = () => {
+  // Use NProgress for route changes
+  useNProgress();
+  
   // Configure global message settings
   useEffect(() => {
     message.config({
@@ -78,22 +85,27 @@ const App: React.FC = () => {
       <AuthProvider>
         <NotificationProvider> 
           <Router>
-            <Routes>
-              {/* Public / Auth routes */}
-              <Route path="/auth/login" element={<LoginPage />} />
-              <Route path="/auth/forgot-password" element={<ForgotPassword />} />
+            <Suspense fallback={<PageLoader />}>
+              <Routes>
+                {/* Public / Auth routes */}
+                <Route path="/auth/login" element={<LoginPage />} />
+                <Route path="/auth/forgot-password" element={<ForgotPassword />} />
 
-          {/* Protected routes wrapped with Layout */}
-          <Route
-            path="/"
-            element={
-              <ProtectedRoute>
-                <Layout />
-              </ProtectedRoute>
-            }
-          >
-            <Route index element={<Dashboard />} />
-            <Route path="dashboard" element={<Dashboard />} />
+                {/* Protected routes wrapped with Layout */}
+                <Route
+                  path="/"
+                  element={
+                    <ProtectedRoute>
+                      <Layout />
+                    </ProtectedRoute>
+                  }
+                >
+                  <Route index element={<Dashboard />} />
+                  <Route path="dashboard" element={<Dashboard />} />
+
+                  {/* Error Pages - inside layout to show sidebar and appbar */}
+                  <Route path="500" element={<ServerError />} />
+                  <Route path="unauthorized" element={<Unauthorized />} />
 
             {/* Onboarding */}
             <Route path="branches" element={<Branches />} />
@@ -153,6 +165,7 @@ const App: React.FC = () => {
           {/* 404 - public fallback */}
           <Route path="*" element={<NotFound />} />
         </Routes>
+      </Suspense>
       </Router>
       </NotificationProvider>
     </AuthProvider>

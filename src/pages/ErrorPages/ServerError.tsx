@@ -2,7 +2,7 @@ import React from 'react';
 import { Result, Button } from 'antd';
 import { useNavigate } from 'react-router-dom';
 
-const NotFound: React.FC = () => {
+const ServerError: React.FC = () => {
   const navigate = useNavigate();
 
   return (
@@ -11,15 +11,14 @@ const NotFound: React.FC = () => {
         display: 'flex',
         justifyContent: 'center',
         alignItems: 'center',
-        minHeight: '100vh',
-        background: '#f5f5f5',
-        padding: '20px',
+        minHeight: 'calc(100vh - 200px)',
+        padding: '40px 20px',
       }}
     >
       <Result
-        status="404"
-        title="404"
-        subTitle="Sorry, the page you visited does not exist."
+        status="500"
+        title="500"
+        subTitle="Sorry, something went wrong on our server."
         extra={
           <div style={{ display: 'flex', gap: '8px', justifyContent: 'center' }}>
             <Button type="primary" onClick={() => navigate(-1)}>
@@ -35,4 +34,4 @@ const NotFound: React.FC = () => {
   );
 };
 
-export default NotFound;
+export default ServerError;

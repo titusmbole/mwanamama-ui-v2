@@ -1,9 +1,16 @@
 import React from 'react';
 import { Result, Button } from 'antd';
+import { CloseCircleOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 
-const NotFound: React.FC = () => {
+const Unauthorized: React.FC = () => {
   const navigate = useNavigate();
+
+  const handleLogout = () => {
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
+    navigate('/auth/login');
+  };
 
   return (
     <div
@@ -11,15 +18,14 @@ const NotFound: React.FC = () => {
         display: 'flex',
         justifyContent: 'center',
         alignItems: 'center',
-        minHeight: '100vh',
-        background: '#f5f5f5',
-        padding: '20px',
+        minHeight: 'calc(100vh - 200px)',
+        padding: '40px 20px',
       }}
     >
       <Result
-        status="404"
-        title="404"
-        subTitle="Sorry, the page you visited does not exist."
+        status="403"
+        title="403"
+        subTitle="Sorry, you are not authorized to access this page."
         extra={
           <div style={{ display: 'flex', gap: '8px', justifyContent: 'center' }}>
             <Button type="primary" onClick={() => navigate(-1)}>
@@ -28,6 +34,9 @@ const NotFound: React.FC = () => {
             <Button onClick={() => navigate('/')}>
               Go Home
             </Button>
+            <Button danger onClick={handleLogout}>
+              Logout
+            </Button>
           </div>
         }
       />
@@ -35,4 +44,4 @@ const NotFound: React.FC = () => {
   );
 };
 
-export default NotFound;
+export default Unauthorized;

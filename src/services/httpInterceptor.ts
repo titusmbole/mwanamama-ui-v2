@@ -2,6 +2,7 @@ import axios from 'axios';
 import { jwtDecode } from 'jwt-decode';
 import { BASE_URL } from '../config/api.config';
 import { showError, showSuccess, showWarning } from '../utils/Notif';
+import NProgress from '../utils/nprogress';
 
 // Create an Axios instance
 const http = axios.create({
@@ -29,6 +30,9 @@ const handleLogout = async () => {
 // Request interceptor
 http.interceptors.request.use(
   (config) => {
+    // Start progress bar
+    NProgress.start();
+    
     const token = localStorage.getItem("token");
     if (token) {
       if (isTokenValid(token)) {
@@ -42,6 +46,8 @@ http.interceptors.request.use(
     return config;
   },
   (error) => {
+    // Stop progress bar on error
+    NProgress.done();
     showError('Request Failed', 'Failed to send request. Please check your connection.');
     return Promise.reject(error);
   }
@@ -50,6 +56,9 @@ http.interceptors.request.use(
 // Response interceptor - Handle API responses and errors
 http.interceptors.response.use(
   (response) => {
+    // Stop progress bar on success
+    NProgress.done();
+    
     // Handle successful responses (2xx status codes)
     const { data, status } = response;
     
@@ -73,6 +82,9 @@ http.interceptors.response.use(
     return response;
   },
   async (error) => {
+    // Stop progress bar on error
+    NProgress.done();
+    
     // Handle network errors (no response from server)
     if (!error.response) {
             console.log("Im runnning in a error response");
@@ -176,6 +188,11 @@ http.interceptors.response.use(
             'Access Denied',
             description || 'You do not have permission to perform this action.'
           );
+          
+          // Navigate to unauthorized page
+          setTimeout(() => {
+            window.location.href = '/unauthorized';
+          }, 1500);
         }
         break;
 
@@ -207,6 +224,11 @@ http.interceptors.response.use(
           'Server Error',
           'An internal server error occurred. Please try again later or contact support.'
         );
+        
+        // Navigate to 500 error page
+        setTimeout(() => {
+          window.location.href = '/500';
+        }, 1500);
         break;
 
       case 502: // Bad Gateway
