@@ -1,10 +1,10 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { 
-  Form, Input, Button, Table, Card, Statistic, Row, Col, message, Spin, InputNumber, Badge, Empty, Typography, Skeleton, Alert
+  Form, Input, Button, Table, Card, Statistic, Row, Col, message, Spin, InputNumber, Badge, Empty, Typography, Skeleton, Alert, Tabs, Modal, DatePicker
 } from 'antd';
 import { 
   SaveOutlined, CalendarOutlined, UserOutlined, EnvironmentOutlined,
-  DollarCircleOutlined, ArrowLeftOutlined, ArrowRightOutlined, TeamOutlined, CheckOutlined, SearchOutlined
+  DollarCircleOutlined, ArrowLeftOutlined, ArrowRightOutlined, TeamOutlined, CheckOutlined, SearchOutlined, PlusOutlined, MinusOutlined, FileTextOutlined
 } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import PageHeader from '../../components/common/Layout/PageHeader';
@@ -29,6 +29,7 @@ interface Client {
   clientNumber: string;
   loanId?: number;
   loanAmount?: number;
+  registration_fee_balance: number;
 }
 
 interface CollectionRow extends Client {
@@ -50,6 +51,17 @@ const CollectionSheet: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [showCollectionForm, setShowCollectionForm] = useState(false);
   const [alertMessage, setAlertMessage] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
+  const [activeTab, setActiveTab] = useState('collection');
+  const [singleEntryGroup, setSingleEntryGroup] = useState<Group | null>(null);
+  const [singleEntryMembers, setSingleEntryMembers] = useState<Client[]>([]);
+  const [loadingSingleMembers, setLoadingSingleMembers] = useState(false);
+  const [depositModalOpen, setDepositModalOpen] = useState(false);
+  const [withdrawModalOpen, setWithdrawModalOpen] = useState(false);
+  const [registrationModalOpen, setRegistrationModalOpen] = useState(false);
+  const [selectedMember, setSelectedMember] = useState<Client | null>(null);
+  const [depositForm] = Form.useForm();
+  const [withdrawForm] = Form.useForm();
+  const [registrationForm] = Form.useForm();
 
   const filteredGroups = useMemo(() => {
     if (!searchTerm) return groups;
@@ -126,6 +138,90 @@ const CollectionSheet: React.FC = () => {
     setMpesaAmount(0);
     setMpesaCode('');
     form.resetFields();
+  };
+
+  const loadSingleEntryMembers = async (groupId: number) => {
+    setLoadingSingleMembers(true);
+    const response = await http.get<Client[]>(`${APIS.GROUP_MEMBERS}/${groupId}`);
+    await new Promise(resolve => setTimeout(resolve, 500));
+    setSingleEntryMembers(response.data);
+    setLoadingSingleMembers(false);
+  };
+
+  const handleSingleEntryGroupSelect = (group: Group) => {
+    setSingleEntryGroup(group);
+    loadSingleEntryMembers(group.id);
+  };
+
+  const handleOpenDepositModal = (member: Client) => {
+    setSelectedMember(member);
+    setDepositModalOpen(true);
+    depositForm.resetFields();
+  };
+
+  const handleOpenWithdrawModal = (member: Client) => {
+    setSelectedMember(member);
+    setWithdrawModalOpen(true);
+    withdrawForm.resetFields();
+  };
+
+  const handleOpenRegistrationModal = (member: Client) => {
+    setSelectedMember(member);
+    setRegistrationModalOpen(true);
+    registrationForm.resetFields();
+  };
+
+  const handleDepositSubmit = async (values: any) => {
+    if (!selectedMember) return;
+
+    const payload = {
+      tranDate: values.transactionDate.format('YYYY-MM-DD'),
+      amount: parseFloat(values.amount),
+      paymentType: values.paymentType,
+      accountType: values.accountType,
+      description: values.description
+    };
+
+    await http.post(`${APIS.ADD_DEPOSIT}${selectedMember.id}`, payload);
+    setDepositModalOpen(false);
+    depositForm.resetFields();
+    if (singleEntryGroup) {
+      loadSingleEntryMembers(singleEntryGroup.id);
+    }
+  };
+
+  const handleWithdrawSubmit = async (values: any) => {
+    if (!selectedMember) return;
+
+    const payload = {
+      tranDate: values.transactionDate.format('YYYY-MM-DD'),
+      amount: parseFloat(values.amount),
+      paymentType: values.paymentType,
+      accountType: values.accountType,
+      description: values.description
+    };
+
+    await http.post(`${APIS.ADD_DEPOSIT}${selectedMember.id}`, payload);
+    setWithdrawModalOpen(false);
+    withdrawForm.resetFields();
+    if (singleEntryGroup) {
+      loadSingleEntryMembers(singleEntryGroup.id);
+    }
+  };
+
+  const handleRegistrationSubmit = async (values: any) => {
+    if (!selectedMember) return;
+
+    const payload = {
+      amount: parseFloat(values.amount)
+    };
+
+    await http.post(`${APIS.ADD_REGISTRATION_FEE}/${selectedMember.id}`, payload);
+    setRegistrationModalOpen(false);
+    registrationForm.resetFields();
+    if (singleEntryGroup) {
+      loadSingleEntryMembers(singleEntryGroup.id);
+    }
   };
 
   const handleInputChange = (memberId: number, field: keyof CollectionRow, value: number) => {
@@ -297,6 +393,8 @@ const CollectionSheet: React.FC = () => {
       />
 
       <PageCard>
+        <Tabs activeKey={activeTab} onChange={setActiveTab}>
+          <Tabs.TabPane tab="Collection Sheet" key="collection">
         {!showCollectionForm ? (
           <>
             {loadingGroups ? (
@@ -652,6 +750,271 @@ const CollectionSheet: React.FC = () => {
             </>
           )
         )}
+          </Tabs.TabPane>
+
+          <Tabs.TabPane tab="Single Entry" key="single">
+            <div style={{ marginBottom: 24 }}>
+              <Input.Search
+                placeholder="Search by group name, number, location, or meeting day..."
+                prefix={<SearchOutlined />}
+                size="large"
+                allowClear
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                style={{ maxWidth: 600 }}
+              />
+            </div>
+
+            {loadingGroups ? (
+              <Row gutter={[16, 16]}>
+                {[1, 2, 3, 4].map(i => (
+                  <Col xs={24} sm={12} md={8} lg={6} key={i}>
+                    <Card>
+                      <Skeleton active paragraph={{ rows: 4 }} />
+                    </Card>
+                  </Col>
+                ))}
+              </Row>
+            ) : filteredGroups.length === 0 ? (
+              <Empty description="No groups available" />
+            ) : !singleEntryGroup ? (
+              <Row gutter={[16, 16]}>
+                {filteredGroups.map(group => (
+                  <Col xs={24} sm={12} md={8} lg={6} key={group.id}>
+                    <Card
+                      hoverable
+                      onClick={() => handleSingleEntryGroupSelect(group)}
+                      style={{
+                        borderRadius: '12px',
+                        border: '1px solid #e8e8e8',
+                        boxShadow: '0 2px 8px rgba(0, 0, 0, 0.06)',
+                        transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                        cursor: 'pointer',
+                      }}
+                      bodyStyle={{ padding: '24px' }}
+                    >
+                      <div style={{ marginBottom: '16px' }}>
+                        <Text strong style={{ fontSize: '17px', color: '#262626' }}>
+                          {group.groupName}
+                        </Text>
+                        <br />
+                        <Text type="secondary" style={{ fontSize: '12px' }}>
+                          {group.groupNumber}
+                        </Text>
+                      </div>
+                      
+                      <div style={{ marginBottom: '8px' }}>
+                        <TeamOutlined style={{ marginRight: '8px', color: '#1890ff' }} />
+                        <Badge count={group.memberCount} style={{ backgroundColor: '#1890ff' }} showZero />
+                        <Text style={{ marginLeft: '8px', fontSize: '13px' }}>Members</Text>
+                      </div>
+                    </Card>
+                  </Col>
+                ))}
+              </Row>
+            ) : (
+              <>
+                <div style={{ marginBottom: 16 }}>
+                  <Button 
+                    icon={<ArrowLeftOutlined />} 
+                    onClick={() => setSingleEntryGroup(null)}
+                    size="large"
+                  >
+                    Back to Groups
+                  </Button>
+                </div>
+
+                <Card title={`${singleEntryGroup.groupName} - Members`}>
+                  {loadingSingleMembers ? (
+                    <Skeleton active paragraph={{ rows: 8 }} />
+                  ) : (
+                    <Table
+                      dataSource={singleEntryMembers}
+                      rowKey="id"
+                      columns={[
+                        {
+                          title: 'Client Name',
+                          dataIndex: 'fullName',
+                          key: 'fullName',
+                        },
+                        {
+                          title: 'Client Number',
+                          dataIndex: 'clientNumber',
+                          key: 'clientNumber',
+                        },
+                        {
+                          title: 'Registration Balance',
+                          dataIndex: 'registration_fee_balance',
+                          key: 'registration_fee_balance',
+                          render: (balance: number) => (
+                            <span style={{ 
+                              color: balance > 0 ? '#faad14' : '#52c41a',
+                              fontWeight: 500 
+                            }}>
+                              Ksh {balance?.toLocaleString() || 0}
+                            </span>
+                          ),
+                        },
+                        {
+                          title: 'Actions',
+                          key: 'actions',
+                          render: (_, member) => (
+                            <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                              <Button
+                                type="primary"
+                                icon={<PlusOutlined />}
+                                onClick={() => handleOpenDepositModal(member)}
+                                style={{ backgroundColor: '#52c41a', borderColor: '#52c41a' }}
+                              >
+                                Deposit
+                              </Button>
+                             
+                              { member.registration_fee_balance > 0 && (
+                                <Button
+                                  type="primary"
+                                  icon={<FileTextOutlined />}
+                                  onClick={() => handleOpenRegistrationModal(member)}
+                                >
+                                  Registration
+                                </Button>
+                              )}
+                            </div>
+                          ),
+                        },
+                      ]}
+                    />
+                  )}
+                </Card>
+              </>
+            )}
+          </Tabs.TabPane>
+        </Tabs>
+
+        <Modal
+          title="Post Deposit"
+          open={depositModalOpen}
+          onCancel={() => setDepositModalOpen(false)}
+          footer={null}
+          width={700}
+        >
+          <Form
+            form={depositForm}
+            layout="vertical"
+            onFinish={handleDepositSubmit}
+          >
+            <Row gutter={16}>
+              <Col span={12}>
+                <Form.Item
+                  name="transactionDate"
+                  label="Transaction Date"
+                  rules={[{ required: true, message: 'Please select date' }]}
+                >
+                  <DatePicker style={{ width: '100%' }} />
+                </Form.Item>
+              </Col>
+              <Col span={12}>
+                <Form.Item
+                  name="amount"
+                  label="Amount"
+                  rules={[{ required: true, message: 'Please enter amount' }]}
+                >
+                  <InputNumber
+                    style={{ width: '100%' }}
+                    placeholder="Enter amount"
+                    prefix="Ksh"
+                    min={0}
+                  />
+                </Form.Item>
+              </Col>
+            </Row>
+            <Row gutter={16}>
+              <Col span={12}>
+                <Form.Item
+                  name="paymentType"
+                  label="Payment Type"
+                  rules={[{ required: true, message: 'Please select payment type' }]}
+                >
+                  <Input placeholder="e.g., Paybill" />
+                </Form.Item>
+              </Col>
+              <Col span={12}>
+                <Form.Item
+                  name="accountType"
+                  label="Account Type"
+                  rules={[{ required: true, message: 'Please select account type' }]}
+                  initialValue="MSA_SAVINGS"
+                >
+                  <Input placeholder="MSA DOWN PAYMENT" />
+                </Form.Item>
+              </Col>
+            </Row>
+            <Form.Item
+              name="description"
+              label="Description"
+              rules={[{ required: true, message: 'Please enter description' }]}
+            >
+              <Input.TextArea rows={3} placeholder="Enter description" />
+            </Form.Item>
+            <Form.Item>
+              <Button type="primary" htmlType="submit" block>
+                Submit Deposit
+              </Button>
+            </Form.Item>
+          </Form>
+        </Modal>
+
+
+        <Modal
+          title="Add Registration Fee"
+          open={registrationModalOpen}
+          onCancel={() => setRegistrationModalOpen(false)}
+          footer={null}
+          width={500}
+        >
+          <Form
+            form={registrationForm}
+            layout="vertical"
+            onFinish={handleRegistrationSubmit}
+          >
+            {selectedMember?.registration_fee_balance && (
+              <Alert
+                message="Remaining Balance"
+                description={`Ksh ${selectedMember.registration_fee_balance.toLocaleString()}`}
+                type="info"
+                showIcon
+                style={{ marginBottom: 16 }}
+              />
+            )}
+            <Form.Item
+              name="amount"
+              label="Amount"
+              rules={[
+                { required: true, message: 'Please enter amount' },
+                {
+                  validator: (_, value) => {
+                    if (selectedMember?.registration_fee_balance && value > selectedMember.registration_fee_balance) {
+                      return Promise.reject('Amount cannot exceed remaining balance');
+                    }
+                    return Promise.resolve();
+                  }
+                }
+              ]}
+            >
+              <InputNumber
+                style={{ width: '100%' }}
+                placeholder="Enter registration fee"
+                prefix="Ksh"
+                min={0}
+                max={selectedMember?.registration_fee_balance}
+              />
+            </Form.Item>
+            <Form.Item>
+              <Button type="primary" htmlType="submit" block>
+                Submit Registration Fee
+              </Button>
+            </Form.Item>
+          </Form>
+        </Modal>
       </PageCard>
     </div>
   );

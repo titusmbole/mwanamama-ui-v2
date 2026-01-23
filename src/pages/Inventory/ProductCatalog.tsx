@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Button, Table, Modal, Form, Input, InputNumber, Select, message, Upload, Image, Popconfirm, Tag } from 'antd';
+import { Button, Table, Form, Input, InputNumber, Select, message, Upload, Image, Popconfirm, Tag, Drawer } from 'antd';
+import FormDrawer from '../../components/common/FormDrawer/FormDrawer';
 import type { ColumnsType } from 'antd/es/table';
 import type { UploadFile } from 'antd/es/upload/interface';
 import { PlusOutlined, EditOutlined, EyeOutlined, DeleteOutlined, UploadOutlined } from '@ant-design/icons';
@@ -55,9 +56,9 @@ const ProductCatalog: React.FC = () => {
   const [pagination, setPagination] = useState({ current: 1, pageSize: 10, total: 0 });
   const [searchText, setSearchText] = useState('');
   
-  const [createModalOpen, setCreateModalOpen] = useState(false);
-  const [editModalOpen, setEditModalOpen] = useState(false);
-  const [viewModalOpen, setViewModalOpen] = useState(false);
+  const [createDrawerOpen, setCreateDrawerOpen] = useState(false);
+  const [editDrawerOpen, setEditDrawerOpen] = useState(false);
+  const [viewDrawerOpen, setViewDrawerOpen] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   
   const [categories, setCategories] = useState<Category[]>([]);
@@ -81,7 +82,7 @@ const ProductCatalog: React.FC = () => {
   const loadData = async (page = 1, pageSize = 10, search = '') => {
     try {
       setLoading(true);
-      const params: any = { page, size: pageSize };
+      const params: any = { page: page - 1, size: pageSize }; // Backend uses 0-indexed pages
       if (search) params.search = search;
 
       const response = await http.get(APIS.LOAD_PRODUCTS, { params });
@@ -167,7 +168,7 @@ const ProductCatalog: React.FC = () => {
       });
       
       message.success('Product created successfully');
-      setCreateModalOpen(false);
+      setCreateDrawerOpen(false);
       createForm.resetFields();
       setFileList([]);
       loadData(pagination.current, pagination.pageSize, searchText);
@@ -193,7 +194,7 @@ const ProductCatalog: React.FC = () => {
       brandId: product.brandName,
     });
     handleCategoryChange(product.category.id, true);
-    setEditModalOpen(true);
+    setEditDrawerOpen(true);
   };
 
   const handleUpdate = async (values: any) => {
@@ -217,7 +218,7 @@ const ProductCatalog: React.FC = () => {
       });
       
       message.success('Product updated successfully');
-      setEditModalOpen(false);
+      setEditDrawerOpen(false);
       editForm.resetFields();
       setFileList([]);
       loadData(pagination.current, pagination.pageSize, searchText);
@@ -316,7 +317,7 @@ const ProductCatalog: React.FC = () => {
       render: (_, record) => (
         <div style={{ display: 'flex', gap: 8 }}>
           <Button type="link" icon={<EditOutlined />} onClick={() => handleEdit(record)} />
-          <Button type="link" icon={<EyeOutlined />} onClick={() => { setSelectedProduct(record); setViewModalOpen(true); }} />
+          <Button type="link" icon={<EyeOutlined />} onClick={() => { setSelectedProduct(record); setViewDrawerOpen(true); }} />
           <Popconfirm
             title="Delete product?"
             onConfirm={() => handleDelete(record.id)}
@@ -402,7 +403,7 @@ const ProductCatalog: React.FC = () => {
 
       <PageCard
         extra={
-          <Button type="primary" icon={<PlusOutlined />} onClick={() => setCreateModalOpen(true)}>
+          <Button type="primary" icon={<PlusOutlined />} onClick={() => setCreateDrawerOpen(true)}>
             Add Product
           </Button>
         }
@@ -426,41 +427,36 @@ const ProductCatalog: React.FC = () => {
         />
       </PageCard>
 
-      {/* Create Modal */}
-      <Modal
+      {/* Create Drawer */}
+      <FormDrawer
         title="Add Product"
-        open={createModalOpen}
-        onCancel={() => { setCreateModalOpen(false); createForm.resetFields(); setFileList([]); }}
-        onOk={() => createForm.submit()}
-        confirmLoading={submitting}
-        width={800}
+        open={createDrawerOpen}
+        onClose={() => { setCreateDrawerOpen(false); createForm.resetFields(); setFileList([]); }}
+        onSubmit={handleCreate}
+        loading={submitting}
+        form={createForm}
       >
-        <Form form={createForm} layout="vertical" onFinish={handleCreate}>
-          {formItems()}
-        </Form>
-      </Modal>
+        {formItems()}
+      </FormDrawer>
 
-      {/* Edit Modal */}
-      <Modal
+      {/* Edit Drawer */}
+      <FormDrawer
         title={`Edit: ${selectedProduct?.itemName}`}
-        open={editModalOpen}
-        onCancel={() => { setEditModalOpen(false); editForm.resetFields(); setFileList([]); }}
-        onOk={() => editForm.submit()}
-        confirmLoading={submitting}
-        width={800}
+        open={editDrawerOpen}
+        onClose={() => { setEditDrawerOpen(false); editForm.resetFields(); setFileList([]); }}
+        onSubmit={handleUpdate}
+        loading={submitting}
+        form={editForm}
       >
-        <Form form={editForm} layout="vertical" onFinish={handleUpdate}>
-          {formItems(true)}
-        </Form>
-      </Modal>
+        {formItems(true)}
+      </FormDrawer>
 
-      {/* View Modal */}
-      <Modal
+      {/* View Drawer */}
+      <Drawer
         title={selectedProduct?.itemName}
-        open={viewModalOpen}
-        onCancel={() => setViewModalOpen(false)}
-        footer={null}
-        width={700}
+        open={viewDrawerOpen}
+        onClose={() => setViewDrawerOpen(false)}
+        width={600}
       >
         {selectedProduct && (
           <div style={{ display: 'grid', gap: 16 }}>
@@ -481,7 +477,7 @@ const ProductCatalog: React.FC = () => {
             </div>
           </div>
         )}
-      </Modal>
+      </Drawer>
     </div>
   );
 };
