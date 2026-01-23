@@ -129,7 +129,7 @@ const DashboardHeader: React.FC<DashboardHeaderProps> = ({
             <Space style={{ cursor: "pointer" }}>
               <Avatar 
                 size={isMobile ? 32 : 35} 
-                style={{ backgroundColor: "#ff4d4f", color: "#fff" }} 
+                style={{ backgroundColor: "#ac202d", color: "#fff" }} 
               >
                 {getUserInitials(user?.name)}
               </Avatar>

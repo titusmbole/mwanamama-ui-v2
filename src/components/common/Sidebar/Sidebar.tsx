@@ -93,15 +93,15 @@ const Sidebar: React.FC<SidebarProps> = ({
                 }}
             >
                 {collapsed && !isMobile ? (
-                    <Title level={4} style={{ margin: 0, color: '#1890ff', fontSize: 20 }}>
-                        TTC
+                    <Title level={4} style={{ margin: 0, color: '#ac202d', fontSize: 20 }}>
+                        ML
                     </Title>
                 ) : (
                     <Title 
                         level={4} 
                         style={{ 
                             margin: 0, 
-                            color: '#1890ff', 
+                            color: '#ac202d', 
                             whiteSpace: 'nowrap',
                             fontSize: isMobile ? 18 : 20,
                         }}
