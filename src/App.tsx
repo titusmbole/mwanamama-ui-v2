@@ -55,7 +55,6 @@ import SpareParts from "./pages/MotorBikes/SpareParts";
 
 // Public/Auth pages
 import LoginPage from "./pages/auth/LoginPage";
-import RegisterPage from "./pages/auth/RegisterPage";
 import ForgotPassword from "./pages/auth/ForgotPassword";
 import NotificationProvider from "./context/NotificationProvider";
 
@@ -76,7 +75,6 @@ const App: React.FC = () => {
         <Routes>
           {/* Public / Auth routes */}
           <Route path="/auth/login" element={<LoginPage />} />
-          <Route path="/auth/register" element={<RegisterPage />} />
           <Route path="/auth/forgot-password" element={<ForgotPassword />} />
 
           {/* Protected routes wrapped with Layout */}
