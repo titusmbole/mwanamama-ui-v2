@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Button, Table, Form, Input, InputNumber, Select, message, Upload, Image, Popconfirm, Tag, Drawer, Switch } from 'antd';
+import { Button, Table, Form, Input, InputNumber, Select, message, Upload, Image, Popconfirm, Tag, Drawer, Switch, Descriptions, Divider } from 'antd';
 import FormDrawer from '../../components/common/FormDrawer/FormDrawer';
 import type { ColumnsType } from 'antd/es/table';
 import type { UploadFile } from 'antd/es/upload/interface';
@@ -550,20 +550,34 @@ const ProductCatalog: React.FC = () => {
       >
         {selectedProduct && (
           <div style={{ display: 'grid', gap: 16 }}>
-            {selectedProduct.imageUrl && (
-              <Image src={selectedProduct.imageUrl} width={200} />
-            )}
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-              <div><strong>Code:</strong> {selectedProduct.itemCode}</div>
-              <div><strong>Stock:</strong> {selectedProduct.currentStock}</div>
-              <div><strong>Category:</strong> {selectedProduct.categoryName}</div>
-              <div><strong>Subcategory:</strong> {selectedProduct.subCategoryName || 'N/A'}</div>
-              <div><strong>Buying Price:</strong> {formatCurrency(selectedProduct.buyingPrice || 0)}</div>
-              <div><strong>Selling Price:</strong> {formatCurrency(selectedProduct.sellingPrice || 0)}</div>
+            <div style={{ display: 'flex', gap: 16, alignItems: 'center' }}>
+              {selectedProduct.imageUrl && (
+                <Image src={selectedProduct.imageUrl} width={120} style={{ borderRadius: 6 }} />
+              )}
+              <div style={{ display: 'grid', gap: 8 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <span style={{ fontWeight: 600 }}>{selectedProduct.itemName}</span>
+                  {selectedProduct.brandName && <Tag>{selectedProduct.brandName}</Tag>}
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                  <span><strong>Code:</strong> {selectedProduct.itemCode}</span>
+                  <Tag color={selectedProduct.taxed ? 'green' : 'default'}>{selectedProduct.taxed ? 'Taxed' : 'Not Taxed'}</Tag>
+                </div>
+              </div>
             </div>
+            <Divider style={{ margin: '8px 0' }} />
+            <Descriptions column={2} size="small" bordered>
+              <Descriptions.Item label="Category">{selectedProduct.categoryName || selectedProduct.category?.categoryName || 'N/A'}</Descriptions.Item>
+              <Descriptions.Item label="Subcategory">{selectedProduct.subCategoryName || selectedProduct.subCategory?.subCategoryName || 'N/A'}</Descriptions.Item>
+              <Descriptions.Item label="Stock">{selectedProduct.currentStock}</Descriptions.Item>
+              <Descriptions.Item label="Reserved">{selectedProduct.reservedStock}</Descriptions.Item>
+              <Descriptions.Item label="Total Sold">{selectedProduct.totalSold}</Descriptions.Item>
+              <Descriptions.Item label="Buying Price">{formatCurrency(selectedProduct.buyingPrice || 0)}</Descriptions.Item>
+              <Descriptions.Item label="Selling Price">{formatCurrency(selectedProduct.sellingPrice || 0)}</Descriptions.Item>
+            </Descriptions>
             <div>
-              <strong>Description:</strong>
-              <p>{selectedProduct.description}</p>
+              <strong>Description</strong>
+              <p style={{ marginTop: 8 }}>{selectedProduct.description || 'No description provided.'}</p>
             </div>
           </div>
         )}
