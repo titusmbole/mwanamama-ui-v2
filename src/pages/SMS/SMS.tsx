@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { 
-    Typography, Card, Tabs, Form, Input, Select, Button, Table, Tag, Row, Col, Space, message, Popconfirm, Tooltip, Radio, Spin
+    Typography, Card, Tabs, Form, Input, Select, Button, Tag, Row, Col, message, Radio, Spin
 } from 'antd';
 import { 
-    MessageOutlined, SendOutlined, EditOutlined, DeleteOutlined, HistoryOutlined, FileTextOutlined, UserOutlined, ClockCircleOutlined, CheckCircleOutlined, CloseCircleOutlined, PlusOutlined, KeyOutlined 
+    SendOutlined, HistoryOutlined, UserOutlined, ClockCircleOutlined, PlusOutlined 
 } from '@ant-design/icons';
 import PageHeader from '../../components/common/Layout/PageHeader';
 import DataTable from '../../components/common/DataTable/DataTable';
@@ -11,7 +11,7 @@ import { APIS } from '../../services/APIS';
 import http from '../../services/httpInterceptor';
 
 const { Title, Text } = Typography;
-const { TabPane } = Tabs;
+// No TabPane destructuring; use Tabs.TabPane directly
 const { Option } = Select;
 const { TextArea } = Input;
 
@@ -21,75 +21,9 @@ const { TextArea } = Input;
 
 const MAX_SMS_LENGTH = 160; // Standard single SMS character limit
 
-interface SmsTemplate {
-    id: number;
-    name: string;
-    event: string;
-    content: string; // Message content with placeholders
-    status: 'Active' | 'Draft';
-}
+// Removed unused interfaces to satisfy strict linting rules
 
-interface MessageLog {
-    id: number;
-    type: 'Transactional' | 'Promotional';
-    recipient: string; // Phone number or group
-    contentPreview: string;
-    status: 'Sent' | 'Failed' | 'Scheduled';
-    date: string;
-}
-
-// Mock Templates
-const mockTemplates: SmsTemplate[] = [
-    {
-        id: 1,
-        name: 'Loan Disbursement Confirmation',
-        event: 'LOAN_DISBURSED',
-        content: 'Dear {{client_name}}, your loan of {{amount}} {{currency}} has been successfully disbursed. Repayment due date: {{due_date}}.',
-        status: 'Active',
-    },
-    {
-        id: 2,
-        name: 'Payment Due Reminder (7 Days)',
-        event: 'PAYMENT_REMINDER',
-        content: 'Reminder: Your loan payment of {{payment_amount}} is due in 7 days ({{due_date}}). Avoid penalties!',
-        status: 'Active',
-    },
-    {
-        id: 3,
-        name: 'New Product Launch',
-        event: 'PROMOTIONAL',
-        content: 'Exciting news! We have launched a new savings product with 10% interest. Visit our website to learn more.',
-        status: 'Draft',
-    },
-];
-
-// Mock Logs
-const mockLogs: MessageLog[] = [
-    {
-        id: 101,
-        type: 'Transactional',
-        recipient: '+1234567890 (John Doe)',
-        contentPreview: 'Dear John Doe, your loan of 1000 USD has been...',
-        status: 'Sent',
-        date: '2025-11-23 10:30 AM',
-    },
-    {
-        id: 102,
-        type: 'Promotional',
-        recipient: 'All Clients (Group)',
-        contentPreview: 'Avoid long queues! Pay your loan installments online...',
-        status: 'Scheduled',
-        date: '2025-11-24 09:00 AM',
-    },
-    {
-        id: 103,
-        type: 'Transactional',
-        recipient: '+1234567891 (Jane Smith)',
-        contentPreview: 'Your recent payment of 250 USD was successfully posted...',
-        status: 'Failed',
-        date: '2025-11-23 09:45 AM',
-    },
-];
+// Removed unused mock templates/logs to satisfy strict lint rules
 
 // ----------------------------------------------------
 // 2. COMPOSE MESSAGE TAB
@@ -218,7 +152,7 @@ const ComposeMessageTab: React.FC = () => {
     };
 
     return (
-        <Card className="shadow-inner border-none">
+        <Card className=" border-none">
             <Title level={4} className="flex items-center"><SendOutlined className="mr-2 text-blue-500" /> Send New Message</Title>
            
             <Form form={form} layout="vertical" onFinish={onFinish}>
@@ -383,10 +317,6 @@ const LogsTab: React.FC = () => {
 };
 
 
-// ----------------------------------------------------
-// 5. ROOT COMPONENT
-// ----------------------------------------------------
-
 const SMS: React.FC = () => {
     return (
         <div>
@@ -399,12 +329,18 @@ const SMS: React.FC = () => {
             
             <div className="page-container p-4 min-h-screen bg-gray-50">
             <div className="mt-4">
-                {/* Use CollectionSheet tab design: plain Tabs with activeKey state */}
+                {/* Tabs with icons like CollectionSheet */}
                 <Tabs defaultActiveKey="logs">
-                    <Tabs.TabPane tab="Logs" key="logs">
+                    <Tabs.TabPane 
+                        tab={<span className="flex items-center gap-2"><HistoryOutlined /> Logs</span>} 
+                        key="logs"
+                    >
                         <LogsTab />
                     </Tabs.TabPane>
-                    <Tabs.TabPane tab="Compose" key="compose">
+                    <Tabs.TabPane 
+                        tab={<span className="flex items-center gap-2"><SendOutlined /> Compose</span>} 
+                        key="compose"
+                    >
                         <ComposeMessageTab />
                     </Tabs.TabPane>
                 </Tabs>

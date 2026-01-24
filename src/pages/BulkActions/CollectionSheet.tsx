@@ -4,7 +4,7 @@ import {
 } from 'antd';
 import { 
   SaveOutlined, CalendarOutlined, UserOutlined, EnvironmentOutlined,
-  DollarCircleOutlined, ArrowLeftOutlined, ArrowRightOutlined, TeamOutlined, CheckOutlined, SearchOutlined, PlusOutlined, MinusOutlined, FileTextOutlined
+  DollarCircleOutlined, ArrowLeftOutlined, ArrowRightOutlined, TeamOutlined, CheckOutlined, SearchOutlined, PlusOutlined, FileTextOutlined
 } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import PageHeader from '../../components/common/Layout/PageHeader';
@@ -56,11 +56,9 @@ const CollectionSheet: React.FC = () => {
   const [singleEntryMembers, setSingleEntryMembers] = useState<Client[]>([]);
   const [loadingSingleMembers, setLoadingSingleMembers] = useState(false);
   const [depositModalOpen, setDepositModalOpen] = useState(false);
-  const [withdrawModalOpen, setWithdrawModalOpen] = useState(false);
   const [registrationModalOpen, setRegistrationModalOpen] = useState(false);
   const [selectedMember, setSelectedMember] = useState<Client | null>(null);
   const [depositForm] = Form.useForm();
-  const [withdrawForm] = Form.useForm();
   const [registrationForm] = Form.useForm();
   
   // Pagination state for collection tab groups
@@ -260,11 +258,6 @@ const CollectionSheet: React.FC = () => {
     depositForm.resetFields();
   };
 
-  const handleOpenWithdrawModal = (member: Client) => {
-    setSelectedMember(member);
-    setWithdrawModalOpen(true);
-    withdrawForm.resetFields();
-  };
 
   const handleOpenRegistrationModal = (member: Client) => {
     setSelectedMember(member);
@@ -291,24 +284,6 @@ const CollectionSheet: React.FC = () => {
     }
   };
 
-  const handleWithdrawSubmit = async (values: any) => {
-    if (!selectedMember) return;
-
-    const payload = {
-      tranDate: values.transactionDate.format('YYYY-MM-DD'),
-      amount: parseFloat(values.amount),
-      paymentType: values.paymentType,
-      accountType: values.accountType,
-      description: values.description
-    };
-
-    await http.post(`${APIS.ADD_DEPOSIT}${selectedMember.id}`, payload);
-    setWithdrawModalOpen(false);
-    withdrawForm.resetFields();
-    if (singleEntryGroup) {
-      loadSingleEntryMembers(singleEntryGroup.id);
-    }
-  };
 
   const handleRegistrationSubmit = async (values: any) => {
     if (!selectedMember) return;
@@ -493,7 +468,10 @@ const CollectionSheet: React.FC = () => {
 
       <PageCard>
         <Tabs activeKey={activeTab} onChange={setActiveTab}>
-          <Tabs.TabPane tab="Collection Sheet" key="collection">
+          <Tabs.TabPane 
+            tab={<span className="flex items-center gap-2"><FileTextOutlined /> Collection Sheet</span>} 
+            key="collection"
+          >
         {!showCollectionForm ? (
           <>
             <div style={{ marginBottom: 24 }}>
@@ -860,7 +838,10 @@ const CollectionSheet: React.FC = () => {
         )}
           </Tabs.TabPane>
 
-          <Tabs.TabPane tab="Single Entry" key="singleEntry">
+          <Tabs.TabPane 
+            tab={<span className="flex items-center gap-2"><TeamOutlined /> Single Entry</span>} 
+            key="singleEntry"
+          >
             <div style={{ marginBottom: 24 }}>
               <Input.Search
                 placeholder="Search by group name, number, location, or meeting day..."
