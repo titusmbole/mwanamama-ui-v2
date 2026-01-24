@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Button, Table, Form, Input, InputNumber, Select, message, Upload, Image, Popconfirm, Tag, Drawer } from 'antd';
+import { Button, Table, Form, Input, InputNumber, Select, message, Upload, Image, Popconfirm, Tag, Drawer, Switch } from 'antd';
 import FormDrawer from '../../components/common/FormDrawer/FormDrawer';
 import type { ColumnsType } from 'antd/es/table';
 import type { UploadFile } from 'antd/es/upload/interface';
@@ -163,6 +163,32 @@ const ProductCatalog: React.FC = () => {
         formData.append('image', fileList[0].originFileObj);
       }
 
+      // Ensure tax fields are present and consistent
+      const imposedToTax = Boolean(values.imposedToTax);
+      formData.set('imposedToTax', String(imposedToTax));
+
+      if (imposedToTax) {
+        const taxType = values.taxType || 'Percentage';
+        formData.set('taxType', taxType);
+        let calculatedTax = 0;
+        if (taxType === 'Fixed') {
+          calculatedTax = Number(values.fixedAmount || 0);
+        } else {
+          const percentage = Number(values.percentage ?? 16);
+          const selling = Number(values.sellingPrice || 0);
+          calculatedTax = selling * (percentage / 100);
+        }
+        formData.set('fixedAmount', String(calculatedTax));
+      } else {
+        // Match v1: send empty taxType to avoid null, and fixedAmount 0
+        formData.set('taxType', '');
+        formData.set('fixedAmount', '0');
+      }
+
+      // Hide price field in UI; set unitPrice from sellingPrice
+      const sellingPriceVal = Number(values.sellingPrice || 0);
+      formData.set('unitPrice', String(sellingPriceVal));
+
       await http.post(APIS.CREATE_PRODUCTS, formData, {
         headers: { 'Content-Type': 'multipart/form-data' }
       });
@@ -181,20 +207,26 @@ const ProductCatalog: React.FC = () => {
 
   const handleEdit = (product: Product) => {
     setSelectedProduct(product);
-    editForm.setFieldsValue({
-      itemName: product.itemName,
-      description: product.description,
-      unitPrice: product.unitPrice,
-      buyingPrice: product.buyingPrice,
-      sellingPrice: product.sellingPrice,
-      currentStock: product.currentStock,
-      reservedStock: product.reservedStock,
-      categoryId: product.category.id,
-      subCategoryId: product.subCategory?.id,
-      brandId: product.brandName,
-    });
+    // Prepare dependent subcategories and open drawer first
     handleCategoryChange(product.category.id, true);
     setEditDrawerOpen(true);
+
+    const matchedBrand = brands.find((b) => b.brandName === product.brandName);
+    const values = {
+      itemName: product.itemName,
+      description: product.description,
+      buyingPrice: product.buyingPrice ?? 0,
+      sellingPrice: product.sellingPrice ?? 0,
+      currentStock: product.currentStock ?? 0,
+      reservedStock: product.reservedStock ?? 0,
+      categoryId: product.category.id,
+      subCategoryId: product.subCategory?.id,
+      brandId: matchedBrand?.id,
+    };
+    // Ensure fields set after drawer/form renders
+    setTimeout(() => {
+      editForm.setFieldsValue(values);
+    }, 0);
   };
 
   const handleUpdate = async (values: any) => {
@@ -212,6 +244,30 @@ const ProductCatalog: React.FC = () => {
       if (fileList.length > 0 && fileList[0].originFileObj) {
         formData.append('image', fileList[0].originFileObj);
       }
+
+      // Align tax fields to avoid nulls like in create
+      const imposedToTax = Boolean(values.imposedToTax);
+      formData.set('imposedToTax', String(imposedToTax));
+      if (imposedToTax) {
+        const taxType = values.taxType || 'Percentage';
+        formData.set('taxType', taxType);
+        let calculatedTax = 0;
+        if (taxType === 'Fixed') {
+          calculatedTax = Number(values.fixedAmount || 0);
+        } else {
+          const percentage = Number(values.percentage ?? 16);
+          const selling = Number(values.sellingPrice || 0);
+          calculatedTax = selling * (percentage / 100);
+        }
+        formData.set('fixedAmount', String(calculatedTax));
+      } else {
+        formData.set('taxType', '');
+        formData.set('fixedAmount', '0');
+      }
+
+      // Ensure unitPrice mirrors sellingPrice on update
+      const sellingPriceVal = Number(values.sellingPrice || 0);
+      formData.set('unitPrice', String(sellingPriceVal));
 
       await http.put(`${APIS.UPDATE_PRODUCTS}/${selectedProduct.id}`, formData, {
         headers: { 'Content-Type': 'multipart/form-data' }
@@ -268,9 +324,8 @@ const ProductCatalog: React.FC = () => {
     },
     {
       title: 'Subcategory',
-      dataIndex: 'subCategoryName',
-      key: 'subCategoryName',
-      render: (text) => text || 'N/A',
+      key: 'subCategory',
+      render: (_, record) => record.subCategoryName || record.subCategory?.subCategoryName || 'N/A',
     },
     {
       title: 'Brand',
@@ -367,10 +422,47 @@ const ProductCatalog: React.FC = () => {
         <Form.Item name="brandId" label="Brand" rules={[{ required: true }]}>
           <Select options={brands.map(b => ({ label: b.brandName, value: b.id }))} />
         </Form.Item>
-        <Form.Item name="supplierId" label="Supplier" rules={[{ required: true }]}>
-          <Select options={suppliers.map(s => ({ label: s.name, value: s.id }))} />
-        </Form.Item>
+        {!isEdit && (
+          <Form.Item name="supplierId" label="Supplier" rules={[{ required: true }]}> 
+            <Select options={suppliers.map(s => ({ label: s.name, value: s.id }))} />
+          </Form.Item>
+        )}
       </div>
+
+        {/* Tax settings */}
+        <Form.Item name="imposedToTax" label="Impose Tax" valuePropName="checked" initialValue={false}>
+          <Switch onChange={(checked) => {
+            const formRef = isEdit ? editForm : createForm;
+            if (checked) {
+              formRef.setFieldsValue({ taxType: 'Percentage', percentage: formRef.getFieldValue('percentage') || 16, fixedAmount: undefined });
+            } else {
+              formRef.setFieldsValue({ taxType: undefined, percentage: undefined, fixedAmount: undefined });
+            }
+          }} />
+        </Form.Item>
+        <Form.Item shouldUpdate noStyle>
+          {({ getFieldValue }) => {
+            const imposed = getFieldValue('imposedToTax');
+            const type = getFieldValue('taxType');
+            return imposed ? (
+              <>
+                <Form.Item name="taxType" label="Tax Type">
+                  <Select options={[{ label: 'Percentage', value: 'Percentage' }, { label: 'Fixed', value: 'Fixed' }]} />
+                </Form.Item>
+                {type === 'Percentage' && (
+                  <Form.Item name="percentage" label="Tax Percentage">
+                    <InputNumber style={{ width: '100%' }} min={0} max={100} />
+                  </Form.Item>
+                )}
+                {type === 'Fixed' && (
+                  <Form.Item name="fixedAmount" label="Fixed Tax Amount">
+                    <InputNumber style={{ width: '100%' }} min={0} />
+                  </Form.Item>
+                )}
+              </>
+            ) : null;
+          }}
+        </Form.Item>
       <Form.Item label="Product Image">
         <Upload
           listType="picture-card"

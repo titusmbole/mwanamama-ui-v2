@@ -225,9 +225,9 @@ http.interceptors.response.use(
         );
         
         // Navigate to 500 error page
-        setTimeout(() => {
-          window.location.href = '/500';
-        }, 1500);
+        // setTimeout(() => {
+        //   window.location.href = '/500';
+        // }, 1500);
         break;
 
       case 502: // Bad Gateway
