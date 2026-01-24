@@ -16,6 +16,23 @@ const LoginPage: React.FC = () => {
   const [api, contextHolder] = notification.useNotification();
   const [form] = Form.useForm();
 
+  // Helper function to decode JWT token
+  const decodeToken = (token: string) => {
+    try {
+      const base64Url = token.split('.')[1];
+      const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+      const jsonPayload = decodeURIComponent(
+        atob(base64)
+          .split('')
+          .map((c) => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2))
+          .join('')
+      );
+      return JSON.parse(jsonPayload);
+    } catch (error) {
+      return null;
+    }
+  };
+
   const handleLogin = useCallback(async (values: any) => {
     const { username, password } = values;
 
@@ -24,9 +41,47 @@ const LoginPage: React.FC = () => {
       const response = await http.post(APIS.LOGIN, { username, password });
       const token = response.data.token;
       
-      login(token);
+      // Decode token to check for 2FA claim
+      const decodedToken = decodeToken(token);
       
-      setTimeout(() => navigate("/dashboard"), 500);
+      // Check if 2FA is enabled
+      if (decodedToken && decodedToken.twoFactorEnabled === true) {
+        // Get user email from decoded token
+        const email = decodedToken.email || "";
+        
+        // Send OTP to user's email
+        try {
+          await http.post(APIS.SEND_OTP, {
+            email,
+            purpose: "EMAIL_VERIFICATION"
+          });
+          
+          api.success({
+            message: "OTP Sent",
+            description: `A verification code has been sent to ${email}`,
+            placement: "topRight",
+          });
+          
+          // Navigate to OTP verification page
+          navigate("/auth/verify-otp", { 
+            state: { 
+              email,
+              username,
+              password
+            } 
+          });
+        } catch (otpError: any) {
+          api.error({
+            message: "Failed to Send OTP",
+            description: otpError.response?.data?.message || "Could not send OTP. Please try again.",
+            placement: "topRight",
+          });
+        }
+      } else {
+        // No 2FA, proceed with normal login
+        login(token);
+        setTimeout(() => navigate("/dashboard"), 500);
+      }
     } catch (error: any) {
     } finally {
       setLoading(false);

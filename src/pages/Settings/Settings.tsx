@@ -1,13 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { 
-    Typography, Card, Form, Input, Select, Button, Switch, Divider, Row, Col, message, Avatar, Table, Tag, Tooltip
+    Typography, Card, Form, Input, Select, Button, Switch, Divider, Row, Col, message, Avatar, Table, Tag, Tooltip, Modal, Alert
 } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import { 
     UserOutlined, LockOutlined, BellOutlined, GlobalOutlined, DollarOutlined, 
     SafetyOutlined, HistoryOutlined, CreditCardOutlined, TeamOutlined, 
     SettingOutlined, RightOutlined, SaveOutlined, KeyOutlined, SecurityScanOutlined,
-    MailOutlined, PhoneOutlined, EnvironmentOutlined, CalendarOutlined, LogoutOutlined, ArrowLeftOutlined
+    MailOutlined, PhoneOutlined, EnvironmentOutlined, CalendarOutlined, LogoutOutlined, ArrowLeftOutlined,
+    ExclamationCircleOutlined
 } from '@ant-design/icons';
 import PageHeader from '../../components/common/Layout/PageHeader';
 import { useAuth } from '../../context/AuthContext';
@@ -174,6 +175,11 @@ const Settings: React.FC = () => {
     const [isLoading, setIsLoading] = useState(false);
     const [activeView, setActiveView] = useState<string | null>(null);
     
+    // 2FA state
+    const [twoFactorEnabled, setTwoFactorEnabled] = useState(false);
+    const [twoFactorModalVisible, setTwoFactorModalVisible] = useState(false);
+    const [pendingTwoFactorStatus, setPendingTwoFactorStatus] = useState(false);
+    
     // Login activities state
     const [loginActivities, setLoginActivities] = useState<LoginActivity[]>([]);
     const [loadingActivities, setLoadingActivities] = useState(false);
@@ -189,6 +195,34 @@ const Settings: React.FC = () => {
 
     const goBackToSettings = () => {
         setActiveView(null);
+    };
+
+    const handle2FAToggle = (checked: boolean) => {
+        setPendingTwoFactorStatus(checked);
+        setTwoFactorModalVisible(true);
+    };
+
+    const confirm2FAChange = async () => {
+        setIsLoading(true);
+        try {
+            await http.put(APIS.SET_2FA, { status: pendingTwoFactorStatus });
+            setTwoFactorEnabled(pendingTwoFactorStatus);
+            message.success(`Two-Factor Authentication ${pendingTwoFactorStatus ? 'enabled' : 'disabled'} successfully!`);
+            setTwoFactorModalVisible(false);
+        } catch (error: any) {
+            message.error(error.response?.data?.message || 'Failed to update 2FA settings.');
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    const fetch2FAStatus = async () => {
+        try {
+            const response = await http.get(APIS.TWO_FA_STATUS);
+            setTwoFactorEnabled(response.data.status);
+        } catch (error: any) {
+            console.error('Failed to fetch 2FA status:', error);
+        }
     };
 
     const loadLoginActivities = async (page = 1, pageSize = 10) => {
@@ -221,6 +255,8 @@ const Settings: React.FC = () => {
     useEffect(() => {
         if (activeView === 'loginActivities') {
             loadLoginActivities();
+        } else if (activeView === 'twoFactor') {
+            fetch2FAStatus();
         }
     }, [activeView]);
 
@@ -493,18 +529,64 @@ const Settings: React.FC = () => {
             case 'twoFactor':
                 return (
                     <div>
-                        <Card className="bg-blue-50">
+                        <Card style={{ backgroundColor: '#e6f7ff', border: '1px solid #91d5ff' }}>
                             <SafetyOutlined style={{ fontSize: 48, color: '#1890ff' }} />
                             <Title level={4}>Two-Factor Authentication</Title>
                             <Text>Add an extra layer of security to your account by requiring a verification code in addition to your password.</Text>
                         </Card>
                         <Divider />
-                        <Switch defaultChecked={false} /> <Text strong>Enable 2FA</Text>
-                        <div style={{ marginTop: 16 }}>
-                            <Button type="primary" block size="large">
-                                Set Up 2FA
-                            </Button>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                            <Switch 
+                                checked={twoFactorEnabled} 
+                                onChange={handle2FAToggle}
+                            /> 
+                            <Text strong>Enable 2FA</Text>
                         </div>
+                        
+                        <Modal
+                            title={
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                                    <ExclamationCircleOutlined style={{ color: '#faad14', fontSize: 24 }} />
+                                    <span>{pendingTwoFactorStatus ? 'Enable' : 'Disable'} Two-Factor Authentication</span>
+                                </div>
+                            }
+                            open={twoFactorModalVisible}
+                            onOk={confirm2FAChange}
+                            onCancel={() => setTwoFactorModalVisible(false)}
+                            confirmLoading={isLoading}
+                            okText="Confirm"
+                            cancelText="Cancel"
+                            okButtonProps={{ danger: !pendingTwoFactorStatus }}
+                        >
+                            <Alert
+                                message={pendingTwoFactorStatus ? 'Enable Two-Factor Authentication' : 'Disable Two-Factor Authentication'}
+                                description={
+                                    <div>
+                                        {pendingTwoFactorStatus ? (
+                                            <>
+                                                <p>You are about to enable Two-Factor Authentication for your account.</p>
+                                                <p><strong>Email:</strong> {user?.email}</p>
+                                                <p>Once enabled, you will receive a One-Time Password (OTP) at <strong>{user?.email}</strong> whenever you log in. You will need this OTP along with your password to access your account.</p>
+                                                <p style={{ marginTop: 12, color: '#faad14' }}>
+                                                    <strong>Important:</strong> Make sure you have access to this email address.
+                                                </p>
+                                            </>
+                                        ) : (
+                                            <>
+                                                <p>You are about to disable Two-Factor Authentication for your account.</p>
+                                                <p style={{ marginTop: 12, color: '#ff4d4f' }}>
+                                                    <strong>Warning:</strong> Disabling 2FA will reduce your account security. You will only need your password to log in.
+                                                </p>
+                                            </>
+                                        )}
+                                    </div>
+                                }
+                                type={pendingTwoFactorStatus ? 'info' : 'warning'}
+                                showIcon
+                                style={{ marginBottom: 16 }}
+                            />
+                            <p>Are you sure you want to {pendingTwoFactorStatus ? 'enable' : 'disable'} Two-Factor Authentication?</p>
+                        </Modal>
                     </div>
                 );
 

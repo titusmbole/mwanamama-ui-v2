@@ -3,9 +3,14 @@ import { BASE_URL } from "../config/api.config";
 export const APIS = {
   // ================== AUTH ==================
   LOGIN: `${BASE_URL}/auth/login`,
+  SEND_OTP: `${BASE_URL}/auth/send-otp`,
+  VERIFY_OTP: `${BASE_URL}/auth/verify-otp`,
+  RESEND_OTP: `${BASE_URL}/auth/resend-otp`,
   LOGIN_ACTIVITIES: `${BASE_URL}/auth/login-activities`,
   UPDATE_PROFILE: `${BASE_URL}/settings/update-profile`,
   CHANGE_PASSWORD: `${BASE_URL}/settings/change-password`,
+  TWO_FA_STATUS: `${BASE_URL}/settings/2fa-status`,
+  SET_2FA: `${BASE_URL}/settings/set-2fa`,
   CREATE_BRANCH: `${BASE_URL}/branches/create`,
   ROLES: `${BASE_URL}/users/roles`,
   ALL_PERMISSONS: `${BASE_URL}/users/permissions`,
