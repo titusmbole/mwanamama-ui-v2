@@ -3,26 +3,40 @@ import { Link } from "react-router-dom";
 import { Card, Input, Button, Typography, notification, Form } from "antd";
 import { MailOutlined, ArrowLeftOutlined } from "@ant-design/icons";
 import AuthLayout from "../../components/auth/AuthLayout";
+import http from "../../services/httpInterceptor";
+import { APIS } from "../../services/APIS";
 
 const { Title, Text } = Typography;
 
 const ForgotPassword: React.FC = () => {
-  const [email, setEmail] = useState("");
   const [loading, setLoading] = useState(false);
   const [api, contextHolder] = notification.useNotification();
+  const [form] = Form.useForm();
 
-  const handleReset = () => {
-    if (!email) {
-      api.warning({ message: "Enter Email", description: "Please enter your email." });
-      return;
-    }
+  const handleReset = async (values: any) => {
+    const { email } = values;
 
     setLoading(true);
-    setTimeout(() => {
-      api.success({ message: "Reset Link Sent!", description: `Check your inbox: ${email}` });
-      setEmail("");
+    try {
+      const response = await http.post(APIS.FORGOT_PASSWORD, { email });
+      
+      api.success({ 
+        message: "Reset OTP Sent!", 
+        description: response.data.message || `Password reset OTP has been sent to ${email}`,
+        placement: "topRight",
+        duration: 5
+      });
+      
+      form.resetFields();
+    } catch (error: any) {
+      api.error({
+        message: "Failed",
+        description: error.response?.data?.message || "Failed to send password reset OTP. Please try again.",
+        placement: "topRight",
+      });
+    } finally {
       setLoading(false);
-    }, 1200);
+    }
   };
 
   return (
@@ -41,14 +55,19 @@ const ForgotPassword: React.FC = () => {
           <Text type="secondary">Enter your email to receive a reset link</Text>
         </div>
 
-        <Form layout="vertical" onFinish={handleReset}>
-          <Form.Item name="email" label="Email" rules={[{ required: true, type: "email" }]}>
+        <Form layout="vertical" onFinish={handleReset} form={form}>
+          <Form.Item 
+            name="email" 
+            label="Email" 
+            rules={[
+              { required: true, message: "Please enter your email" },
+              { type: "email", message: "Please enter a valid email" }
+            ]}
+          >
             <Input
               prefix={<MailOutlined />}
               size="large"
-              placeholder="Email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
+              placeholder="Enter your email address"
             />
           </Form.Item>
 

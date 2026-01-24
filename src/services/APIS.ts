@@ -3,6 +3,8 @@ import { BASE_URL } from "../config/api.config";
 export const APIS = {
   // ================== AUTH ==================
   LOGIN: `${BASE_URL}/auth/login`,
+  FORGOT_PASSWORD: `${BASE_URL}/auth/forgot-password`,
+  RESET_PASSWORD: `${BASE_URL}/auth/reset-password`,
   SEND_OTP: `${BASE_URL}/auth/send-otp`,
   VERIFY_OTP: `${BASE_URL}/auth/verify-otp`,
   RESEND_OTP: `${BASE_URL}/auth/resend-otp`,

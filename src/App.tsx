@@ -12,6 +12,7 @@ import { useNProgress } from "./utils/nprogress";
 // Eager load critical pages
 import LoginPage from "./pages/auth/LoginPage";
 import ForgotPassword from "./pages/auth/ForgotPassword";
+import ResetPassword from "./pages/auth/ResetPassword";
 import OtpVerification from "./pages/auth/OtpVerification";
 import NotFound from "./pages/NotFound/NotFound";
 
@@ -91,6 +92,7 @@ const App: React.FC = () => {
                 {/* Public / Auth routes */}
                 <Route path="/auth/login" element={<LoginPage />} />
                 <Route path="/auth/forgot-password" element={<ForgotPassword />} />
+                <Route path="/auth/reset-password" element={<ResetPassword />} />
                 <Route path="/auth/verify-otp" element={<OtpVerification />} />
 
                 {/* Protected routes wrapped with Layout */}
