@@ -220,8 +220,7 @@ const ComposeMessageTab: React.FC = () => {
     return (
         <Card className="shadow-inner border-none">
             <Title level={4} className="flex items-center"><SendOutlined className="mr-2 text-blue-500" /> Send New Message</Title>
-            <Text type="secondary" className="block mb-4">Send a promotional blast to client groups or a custom message to an individual.</Text>
-            
+           
             <Form form={form} layout="vertical" onFinish={onFinish}>
                 <Row gutter={24}>
                     <Col xs={24} lg={12}>
@@ -340,104 +339,6 @@ const ComposeMessageTab: React.FC = () => {
 };
 
 
-// ----------------------------------------------------
-// 3. TEMPLATES TAB
-// ----------------------------------------------------
-
-const TemplatesTab: React.FC = () => {
-    const [data, setData] = useState(mockTemplates);
-
-    const handleDelete = (id: number) => {
-        setData(data.filter(item => item.id !== id));
-        message.success('Template deleted successfully.');
-    };
-
-    const handleEdit = (record: SmsTemplate) => {
-        message.info(`Opening edit modal for template: ${record.name}`);
-    };
-    
-    const handleAdd = () => {
-        message.info('Opening new template creation modal.');
-    };
-
-    const templateColumns = [
-        {
-            title: 'Template Name',
-            dataIndex: 'name',
-            key: 'name',
-            render: (text: string) => <Text strong>{text}</Text>,
-        },
-        {
-            title: 'Trigger Event',
-            dataIndex: 'event',
-            key: 'event',
-            render: (event: string) => (
-                <Tag color={event === 'PROMOTIONAL' ? 'purple' : 'green'}>{event}</Tag>
-            ),
-        },
-        {
-            title: 'Content Preview (Placeholders)',
-            dataIndex: 'content',
-            key: 'content',
-            ellipsis: true,
-            render: (content: string) => (
-                <Tooltip title={content}>
-                    {content.length > 50 ? content.substring(0, 47) + '...' : content}
-                </Tooltip>
-            ),
-        },
-        {
-            title: 'Status',
-            dataIndex: 'status',
-            key: 'status',
-            align: 'center' as const,
-            render: (status: string) => (
-                <Tag color={status === 'Active' ? 'blue' : 'default'}>{status}</Tag>
-            ),
-        },
-        {
-            title: 'Action',
-            key: 'action',
-            align: 'center' as const,
-            render: (_: any, record: SmsTemplate) => (
-                <Space size="middle">
-                    <Button icon={<EditOutlined />} size="small" onClick={() => handleEdit(record)} type="primary" ghost>Edit</Button>
-                    <Popconfirm
-                        title="Are you sure to delete this template?"
-                        onConfirm={() => handleDelete(record.id)}
-                        okText="Yes"
-                        cancelText="No"
-                    >
-                        <Button icon={<DeleteOutlined />} size="small" danger>Delete</Button>
-                    </Popconfirm>
-                </Space>
-            ),
-        },
-    ];
-
-    return (
-        <Card className="shadow-inner border-none">
-            <Title level={4} className="flex items-center"><FileTextOutlined className="mr-2 text-green-500" /> Transactional Templates</Title>
-            <Text type="secondary" className="block mb-4">
-                These templates are automatically triggered by system events (e.g., loan approval, payment received). Note the available placeholders (e.g., <Tag color="orange">{'{{client_name}}'}</Tag>).
-            </Text>
-            
-            <Row justify="end" className="mb-4">
-                <Button type="dashed" onClick={handleAdd} icon={<PlusOutlined />}>Add New Template</Button>
-            </Row>
-
-            <Table 
-                columns={templateColumns} 
-                dataSource={data}
-                rowKey="id"
-                pagination={false}
-                size="middle"
-                bordered
-            />
-        </Card>
-    );
-};
-
 
 // ----------------------------------------------------
 // 4. LOGS TAB
@@ -472,9 +373,6 @@ const LogsTab: React.FC = () => {
 
     return (
         <Card className=" border-none">
-            <Title level={4} className="flex items-center"><HistoryOutlined className="mr-2 text-orange-500" /> Message History</Title>
-            <Text type="secondary" className="block mb-4">A complete log of all outgoing SMS, including delivery status.</Text>
-
             <DataTable
                 apiUrl={APIS.LOAD_SMS}
                 columns={columns}
