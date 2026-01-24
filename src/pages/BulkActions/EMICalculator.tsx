@@ -1,9 +1,9 @@
 import React, { useState, useMemo } from 'react';
 import { 
-    Typography, Card, Form, InputNumber, Button, Table, Row, Col, Statistic, Alert, Space
+    Typography, Card, Form, InputNumber, Button, Table, Row, Col, Statistic, Alert, message
 } from 'antd';
 import { 
-    CalculatorOutlined, PoundCircleOutlined, CalendarOutlined, SolutionOutlined, InfoCircleOutlined 
+    CalculatorOutlined, PoundCircleOutlined, CalendarOutlined, SolutionOutlined 
 } from '@ant-design/icons';
 import PageHeader from '../../components/common/Layout/PageHeader';
 
@@ -167,7 +167,22 @@ const EMICalculator: React.FC = () => {
 
     // --- Renderer for currency (simplified) ---
     const formatCurrency = (amount: number) => {
-        return `${CURRENCY} ${amount.toFixed(2).toLocaleString('en-US')}`;
+        return `${CURRENCY} ${amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+    };
+
+    const parseCurrency = (value?: string): number => {
+        const cleaned = value ? value.replace(new RegExp(`^${CURRENCY}\\s?|\\s?${CURRENCY}|,`, 'g'), '') : '0';
+        return Number(cleaned) || 0;
+    };
+
+    const parsePercent = (value?: string): number => {
+        const cleaned = value ? value.replace('%', '') : '0';
+        return Number(cleaned) || 0;
+    };
+
+    const parseMonths = (value?: string): number => {
+        const cleaned = value ? value.replace(' months', '') : '0';
+        return Number(cleaned) || 0;
     };
 
 
@@ -181,13 +196,6 @@ const EMICalculator: React.FC = () => {
             />
             
             <div className="page-container p-4 min-h-screen bg-gray-50">
-                <Title level={2} className="text-gray-800">
-                    <CalculatorOutlined style={{ marginRight: 10 }} /> EMI & Amortization Calculator
-                </Title>
-                <Text type="secondary">
-                    Calculate the Equal Monthly Installment (EMI) and view the full breakdown of your loan repayment schedule.
-                </Text>
-
             <Row gutter={24} className="mt-6">
                 
                 {/* --- Input Form --- */}
@@ -207,7 +215,7 @@ const EMICalculator: React.FC = () => {
                                 <InputNumber 
                                     min={100} 
                                     formatter={value => `${CURRENCY} ${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
-                                    parser={value => value ? value.replace(new RegExp(`^${CURRENCY}\\s?|\\s?${CURRENCY}|,`, 'g'), '') : 0}
+                                        parser={parseCurrency as any}
                                     style={{ width: '100%' }} 
                                     size="large"
                                 />
@@ -220,7 +228,7 @@ const EMICalculator: React.FC = () => {
                                 <InputNumber 
                                     min={0} max={100} step={0.1}
                                     formatter={value => `${value}%`}
-                                    parser={value => value ? value.replace('%', '') : 0}
+                                        parser={parsePercent as any}
                                     style={{ width: '100%' }} 
                                     size="large"
                                 />
@@ -233,7 +241,7 @@ const EMICalculator: React.FC = () => {
                                 <InputNumber 
                                     min={1} max={360}
                                     formatter={value => `${value} months`}
-                                    parser={value => value ? value.replace(' months', '') : 0}
+                                        parser={parseMonths as any}
                                     style={{ width: '100%' }} 
                                     size="large"
                                 />
