@@ -271,12 +271,17 @@ const Settings: React.FC = () => {
     const onSaveProfile = async (values: any) => {
         setIsLoading(true);
         try {
-            console.log('Saving Profile:', values);
-            await new Promise(resolve => setTimeout(resolve, 1000));
+            const payload = {
+                name: values.name,
+                phoneNumber: values.phone || '',
+                location: values.location || ''
+            };
+            
+            await http.put(APIS.UPDATE_PROFILE, payload);
             message.success('Profile updated successfully!');
             goBackToSettings();
-        } catch (error) {
-            message.error('Failed to update profile.');
+        } catch (error: any) {
+            message.error(error.response?.data?.message || 'Failed to update profile.');
         } finally {
             setIsLoading(false);
         }
@@ -285,13 +290,18 @@ const Settings: React.FC = () => {
     const onSavePassword = async (values: any) => {
         setIsLoading(true);
         try {
-            console.log('Changing Password:', values);
-            await new Promise(resolve => setTimeout(resolve, 1000));
+            const payload = {
+                currentPassword: values.currentPassword,
+                newPassword: values.newPassword,
+                confirmPassword: values.confirmPassword
+            };
+            
+            await http.put(APIS.CHANGE_PASSWORD, payload);
             message.success('Password changed successfully!');
             passwordForm.resetFields();
             goBackToSettings();
-        } catch (error) {
-            message.error('Failed to change password.');
+        } catch (error: any) {
+            message.error(error.response?.data?.message || 'Failed to change password.');
         } finally {
             setIsLoading(false);
         }
@@ -680,7 +690,7 @@ const Settings: React.FC = () => {
                 breadcrumbs={
                     activeView 
                         ? [
-                            { title: 'Settings' },
+                            { title: 'Settings', path: '/settings' },
                             { title: settingsCards.find(c => c.key === activeView)?.title || '' }
                           ]
                         : [{ title: 'Settings' }]

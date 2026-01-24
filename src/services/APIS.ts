@@ -4,6 +4,8 @@ export const APIS = {
   // ================== AUTH ==================
   LOGIN: `${BASE_URL}/auth/login`,
   LOGIN_ACTIVITIES: `${BASE_URL}/auth/login-activities`,
+  UPDATE_PROFILE: `${BASE_URL}/settings/update-profile`,
+  CHANGE_PASSWORD: `${BASE_URL}/settings/change-password`,
   CREATE_BRANCH: `${BASE_URL}/branches/create`,
   ROLES: `${BASE_URL}/users/roles`,
   ALL_PERMISSONS: `${BASE_URL}/users/permissions`,
