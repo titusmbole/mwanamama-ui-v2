@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { 
-  Form, Input, Button, Table, Card, Statistic, Row, Col, message, Spin, InputNumber, Badge, Empty, Typography, Skeleton, Alert, Tabs, Modal, DatePicker
+  Form, Input, Button, Table, Card, Statistic, Row, Col, message, Spin, InputNumber, Badge, Empty, Typography, Skeleton, Alert, Tabs, Modal, DatePicker, Pagination
 } from 'antd';
 import { 
   SaveOutlined, CalendarOutlined, UserOutlined, EnvironmentOutlined,
@@ -62,30 +62,71 @@ const CollectionSheet: React.FC = () => {
   const [depositForm] = Form.useForm();
   const [withdrawForm] = Form.useForm();
   const [registrationForm] = Form.useForm();
-
-  const filteredGroups = useMemo(() => {
-    if (!searchTerm) return groups;
-    
-    const term = searchTerm.toLowerCase();
-    return groups.filter(group => 
-      group.groupName.toLowerCase().includes(term) ||
-      group.groupNumber.toLowerCase().includes(term) ||
-      group.location?.toLowerCase().includes(term) ||
-      group.meetingDay?.toLowerCase().includes(term)
-    );
-  }, [groups, searchTerm]);
+  
+  // Pagination state for collection tab groups
+  const [collectionGroupsPagination, setCollectionGroupsPagination] = useState({
+    current: 1,
+    pageSize: 10,
+    total: 0,
+  });
+  
+  // Pagination state for single entry tab groups
+  const [singleEntryGroupsPagination, setSingleEntryGroupsPagination] = useState({
+    current: 1,
+    pageSize: 10,
+    total: 0,
+  });
+  const [singleEntryGroups, setSingleEntryGroups] = useState<Group[]>([]);
+  const [loadingSingleEntryGroups, setLoadingSingleEntryGroups] = useState(false);
+  const [singleEntryGroupsSearch, setSingleEntryGroupsSearch] = useState('');
+  
+  // Pagination state for single entry members
+  const [membersPagination, setMembersPagination] = useState({
+    current: 1,
+    pageSize: 10,
+    total: 0,
+  });
+  const [membersSearchTerm, setMembersSearchTerm] = useState('');
 
   useEffect(() => {
     loadGroups();
   }, []);
+  
+  // Load single entry groups when tab is active
+  useEffect(() => {
+    if (activeTab === 'singleEntry') {
+      loadSingleEntryGroups();
+    }
+  }, [activeTab]);
 
-  const loadGroups = async () => {
+  const loadGroups = async (page = 1, pageSize = 10, search = '') => {
     setLoadingGroups(true);
-    const response = await http.get<Group[]>(APIS.LOAD_GROUPS_UNPAGINATED);
-    // Add 500ms delay for skeleton loading
-    await new Promise(resolve => setTimeout(resolve, 500));
-    setGroups(response.data);
-    setLoadingGroups(false);
+    try {
+      const response = await http.get(APIS.LOAD_GROUPS, {
+        params: {
+          page: page - 1, // Backend uses 0-based indexing
+          size: pageSize,
+          search: search || undefined,
+        },
+      });
+      // Add 500ms delay for skeleton loading
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
+      const responseData = response.data;
+      if (responseData.content && Array.isArray(responseData.content)) {
+        setGroups(responseData.content);
+        setCollectionGroupsPagination({
+          current: page,
+          pageSize: pageSize,
+          total: responseData.totalElements || 0,
+        });
+      }
+    } catch (error) {
+      message.error('Failed to load groups');
+      setGroups([]);
+    } finally {
+      setLoadingGroups(false);
+    }
   };
 
   const loadGroupInfo = async (groupId: number) => {
@@ -140,12 +181,72 @@ const CollectionSheet: React.FC = () => {
     form.resetFields();
   };
 
-  const loadSingleEntryMembers = async (groupId: number) => {
+  const loadSingleEntryMembers = async (groupId: number, page = 1, pageSize = 10, search = '') => {
     setLoadingSingleMembers(true);
-    const response = await http.get<Client[]>(`${APIS.GROUP_MEMBERS}/${groupId}`);
-    await new Promise(resolve => setTimeout(resolve, 500));
-    setSingleEntryMembers(response.data);
-    setLoadingSingleMembers(false);
+    try {
+      const response = await http.get(`${APIS.GROUP_MEMBERS}/${groupId}`, {
+        params: {
+          page: page - 1,
+          size: pageSize,
+          search: search || undefined,
+        },
+      });
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
+      const responseData = response.data;
+      // Handle paginated response
+      if (responseData.content && Array.isArray(responseData.content)) {
+        setSingleEntryMembers(responseData.content);
+        setMembersPagination({
+          current: page,
+          pageSize: pageSize,
+          total: responseData.totalElements || 0,
+        });
+      }
+      // Handle non-paginated response (fallback)
+      else if (Array.isArray(responseData)) {
+        setSingleEntryMembers(responseData);
+        setMembersPagination({
+          current: 1,
+          pageSize: responseData.length,
+          total: responseData.length,
+        });
+      }
+    } catch (error) {
+      message.error('Failed to load members');
+      setSingleEntryMembers([]);
+    } finally {
+      setLoadingSingleMembers(false);
+    }
+  };
+
+  const loadSingleEntryGroups = async (page = 1, pageSize = 10, search = '') => {
+    setLoadingSingleEntryGroups(true);
+    try {
+      const response = await http.get(APIS.LOAD_GROUPS, {
+        params: {
+          page: page - 1,
+          size: pageSize,
+          search: search || undefined,
+        },
+      });
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
+      const responseData = response.data;
+      if (responseData.content && Array.isArray(responseData.content)) {
+        setSingleEntryGroups(responseData.content);
+        setSingleEntryGroupsPagination({
+          current: page,
+          pageSize: pageSize,
+          total: responseData.totalElements || 0,
+        });
+      }
+    } catch (error) {
+      message.error('Failed to load groups');
+      setSingleEntryGroups([]);
+    } finally {
+      setLoadingSingleEntryGroups(false);
+    }
   };
 
   const handleSingleEntryGroupSelect = (group: Group) => {
@@ -395,6 +496,22 @@ const CollectionSheet: React.FC = () => {
           <Tabs.TabPane tab="Collection Sheet" key="collection">
         {!showCollectionForm ? (
           <>
+            <div style={{ marginBottom: 24 }}>
+              <Input.Search
+                placeholder="Search by group name, number, location, or meeting day..."
+                prefix={<SearchOutlined />}
+                size="large"
+                allowClear
+                value={searchTerm}
+                onSearch={(value) => {
+                  setSearchTerm(value);
+                  loadGroups(1, collectionGroupsPagination.pageSize, value);
+                }}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                style={{ maxWidth: 600 }}
+              />
+            </div>
+            
             {loadingGroups ? (
               <Row gutter={[16, 16]}>
                 {[1, 2, 3, 4, 5, 6, 7, 8].map(i => (
@@ -405,34 +522,15 @@ const CollectionSheet: React.FC = () => {
                   </Col>
                 ))}
               </Row>
-            ) : groups.length === 0 ? (
+            ) : groups.length === 0 && !loadingGroups ? (
               <Empty 
-                description="No groups available"
+                description={searchTerm ? "No groups match your search" : "No groups available"}
                 style={{ marginTop: '60px' }}
               />
             ) : (
               <>
-                <div style={{ marginBottom: 24 }}>
-                  <Input.Search
-                    placeholder="Search by group name, number, location, or meeting day..."
-                    prefix={<SearchOutlined />}
-                    size="large"
-                    allowClear
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    style={{ maxWidth: 600 }}
-                  />
-                </div>
-                
-                {filteredGroups.length === 0 ? (
-                  <Empty 
-                    description="No groups match your search"
-                    style={{ marginTop: '60px' }}
-                  />
-                ) : (
-                <>
                   <Row gutter={[16, 16]}>
-                  {filteredGroups.map(group => (
+                  {groups.map(group => (
                     <Col xs={24} sm={12} md={8} lg={6} key={group.id}>
                       <Card
                         hoverable
@@ -525,6 +623,20 @@ const CollectionSheet: React.FC = () => {
                   ))}
                 </Row>
                 
+                {/* Pagination Controls */}
+                <div style={{ marginTop: '24px', display: 'flex', justifyContent: 'center' }}>
+                  <Pagination
+                    current={collectionGroupsPagination.current}
+                    pageSize={collectionGroupsPagination.pageSize}
+                    total={collectionGroupsPagination.total}
+                    onChange={(page, pageSize) => loadGroups(page, pageSize, searchTerm)}
+                    onShowSizeChange={(_current, size) => loadGroups(1, size, searchTerm)}
+                    showSizeChanger
+                    showTotal={(total) => `Total ${total} groups`}
+                    pageSizeOptions={['10', '20', '50', '100']}
+                  />
+                </div>
+                
                 <div style={{ 
                   marginTop: '32px',
                   paddingBottom: '24px',
@@ -546,8 +658,6 @@ const CollectionSheet: React.FC = () => {
                     </Button>
                   </div>
                 </div>
-                </>
-                )}
               </>
             )}
           </>
@@ -750,20 +860,24 @@ const CollectionSheet: React.FC = () => {
         )}
           </Tabs.TabPane>
 
-          <Tabs.TabPane tab="Single Entry" key="single">
+          <Tabs.TabPane tab="Single Entry" key="singleEntry">
             <div style={{ marginBottom: 24 }}>
               <Input.Search
                 placeholder="Search by group name, number, location, or meeting day..."
                 prefix={<SearchOutlined />}
                 size="large"
                 allowClear
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
+                value={singleEntryGroupsSearch}
+                onSearch={(value) => {
+                  setSingleEntryGroupsSearch(value);
+                  loadSingleEntryGroups(1, singleEntryGroupsPagination.pageSize, value);
+                }}
+                onChange={(e) => setSingleEntryGroupsSearch(e.target.value)}
                 style={{ maxWidth: 600 }}
               />
             </div>
 
-            {loadingGroups ? (
+            {loadingSingleEntryGroups ? (
               <Row gutter={[16, 16]}>
                 {[1, 2, 3, 4].map(i => (
                   <Col xs={24} sm={12} md={8} lg={6} key={i}>
@@ -773,11 +887,12 @@ const CollectionSheet: React.FC = () => {
                   </Col>
                 ))}
               </Row>
-            ) : filteredGroups.length === 0 ? (
+            ) : singleEntryGroups.length === 0 && !loadingSingleEntryGroups ? (
               <Empty description="No groups available" />
             ) : !singleEntryGroup ? (
+              <>
               <Row gutter={[16, 16]}>
-                {filteredGroups.map(group => (
+                {singleEntryGroups.map(group => (
                   <Col xs={24} sm={12} md={8} lg={6} key={group.id}>
                     <Card
                       hoverable
@@ -810,6 +925,21 @@ const CollectionSheet: React.FC = () => {
                   </Col>
                 ))}
               </Row>
+              
+              {/* Pagination for single entry groups */}
+              <div style={{ marginTop: '24px', display: 'flex', justifyContent: 'center' }}>
+                <Pagination
+                  current={singleEntryGroupsPagination.current}
+                  pageSize={singleEntryGroupsPagination.pageSize}
+                  total={singleEntryGroupsPagination.total}
+                  onChange={(page, pageSize) => loadSingleEntryGroups(page, pageSize, singleEntryGroupsSearch)}
+                  onShowSizeChange={(_current, size) => loadSingleEntryGroups(1, size, singleEntryGroupsSearch)}
+                  showSizeChanger
+                  showTotal={(total) => `Total ${total} groups`}
+                  pageSizeOptions={['10', '20', '50', '100']}
+                />
+              </div>
+              </>
             ) : (
               <>
                 <div style={{ marginBottom: 16 }}>
@@ -823,12 +953,41 @@ const CollectionSheet: React.FC = () => {
                 </div>
 
                 <Card title={`${singleEntryGroup.groupName} - Members`}>
+                  <div style={{ marginBottom: 16 }}>
+                    <Input.Search
+                      placeholder="Search members by name or client number..."
+                      prefix={<SearchOutlined />}
+                      allowClear
+                      value={membersSearchTerm}
+                      onSearch={(value) => {
+                        setMembersSearchTerm(value);
+                        loadSingleEntryMembers(singleEntryGroup.id, 1, membersPagination.pageSize, value);
+                      }}
+                      onChange={(e) => setMembersSearchTerm(e.target.value)}
+                      style={{ maxWidth: 400 }}
+                    />
+                  </div>
+                  
                   {loadingSingleMembers ? (
                     <Skeleton active paragraph={{ rows: 8 }} />
                   ) : (
                     <Table
                       dataSource={singleEntryMembers}
                       rowKey="id"
+                      pagination={{
+                        current: membersPagination.current,
+                        pageSize: membersPagination.pageSize,
+                        total: membersPagination.total,
+                        onChange: (page, pageSize) => {
+                          loadSingleEntryMembers(singleEntryGroup.id, page, pageSize, membersSearchTerm);
+                        },
+                        onShowSizeChange: (_current, size) => {
+                          loadSingleEntryMembers(singleEntryGroup.id, 1, size, membersSearchTerm);
+                        },
+                        showSizeChanger: true,
+                        showTotal: (total) => `Total ${total} members`,
+                        pageSizeOptions: ['10', '20', '50', '100'],
+                      }}
                       columns={[
                         {
                           title: 'Client Name',
