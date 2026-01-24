@@ -3,6 +3,7 @@ import { BASE_URL } from "../config/api.config";
 export const APIS = {
   // ================== AUTH ==================
   LOGIN: `${BASE_URL}/auth/login`,
+  LOGIN_ACTIVITIES: `${BASE_URL}/auth/login-activities`,
   CREATE_BRANCH: `${BASE_URL}/branches/create`,
   ROLES: `${BASE_URL}/users/roles`,
   ALL_PERMISSONS: `${BASE_URL}/users/permissions`,

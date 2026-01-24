@@ -1,15 +1,22 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
-    Typography, Card, Form, Input, Select, Button, Switch, Divider, Row, Col, message, Drawer, Avatar
+    Typography, Card, Form, Input, Select, Button, Switch, Divider, Row, Col, message, Avatar, Table, Tag, Tooltip
 } from 'antd';
+import type { ColumnsType } from 'antd/es/table';
 import { 
     UserOutlined, LockOutlined, BellOutlined, GlobalOutlined, DollarOutlined, 
     SafetyOutlined, HistoryOutlined, CreditCardOutlined, TeamOutlined, 
     SettingOutlined, RightOutlined, SaveOutlined, KeyOutlined, SecurityScanOutlined,
-    MailOutlined, PhoneOutlined, EnvironmentOutlined, CalendarOutlined, LogoutOutlined
+    MailOutlined, PhoneOutlined, EnvironmentOutlined, CalendarOutlined, LogoutOutlined, ArrowLeftOutlined
 } from '@ant-design/icons';
 import PageHeader from '../../components/common/Layout/PageHeader';
 import { useAuth } from '../../context/AuthContext';
+import http from '../../services/httpInterceptor';
+import { APIS } from '../../services/APIS';
+import dayjs from 'dayjs';
+import relativeTime from 'dayjs/plugin/relativeTime';
+
+dayjs.extend(relativeTime);
 
 const { Title, Text } = Typography;
 const { Option } = Select;
@@ -20,6 +27,20 @@ interface SettingsCard {
     description: string;
     icon: React.ReactNode;
     category: string;
+}
+
+interface LoginActivity {
+    id: number;
+    username: string;
+    ipAddress: string;
+    userAgent: string;
+    deviceType: string;
+    location: string | null;
+    status: 'SUCCESS' | 'FAILED';
+    failureReason: string | null;
+    loginTime: string;
+    logoutTime: string | null;
+    sessionId: string;
 }
 
 const settingsCards: SettingsCard[] = [
@@ -151,18 +172,57 @@ const Settings: React.FC = () => {
     const [passwordForm] = Form.useForm();
     
     const [isLoading, setIsLoading] = useState(false);
-    const [drawerVisible, setDrawerVisible] = useState(false);
-    const [currentDrawer, setCurrentDrawer] = useState<string | null>(null);
+    const [activeView, setActiveView] = useState<string | null>(null);
+    
+    // Login activities state
+    const [loginActivities, setLoginActivities] = useState<LoginActivity[]>([]);
+    const [loadingActivities, setLoadingActivities] = useState(false);
+    const [activitiesPagination, setActivitiesPagination] = useState({
+        current: 1,
+        pageSize: 10,
+        total: 0,
+    });
 
-    const openDrawer = (key: string) => {
-        setCurrentDrawer(key);
-        setDrawerVisible(true);
+    const openView = (key: string) => {
+        setActiveView(key);
     };
 
-    const closeDrawer = () => {
-        setDrawerVisible(false);
-        setCurrentDrawer(null);
+    const goBackToSettings = () => {
+        setActiveView(null);
     };
+
+    const loadLoginActivities = async (page = 1, pageSize = 10) => {
+        setLoadingActivities(true);
+        try {
+            const response = await http.get(APIS.LOGIN_ACTIVITIES, {
+                params: {
+                    page: page - 1,
+                    size: pageSize,
+                },
+            });
+            
+            const responseData = response.data;
+            if (responseData.content && Array.isArray(responseData.content)) {
+                setLoginActivities(responseData.content);
+                setActivitiesPagination({
+                    current: page,
+                    pageSize: pageSize,
+                    total: responseData.totalElements || 0,
+                });
+            }
+        } catch (error: any) {
+            message.error(error.response?.data?.message || 'Failed to load login activities');
+        } finally {
+            setLoadingActivities(false);
+        }
+    };
+
+    // Load login activities when view opens
+    useEffect(() => {
+        if (activeView === 'loginActivities') {
+            loadLoginActivities();
+        }
+    }, [activeView]);
 
     const onSaveGeneral = async (values: GeneralSettings) => {
         setIsLoading(true);
@@ -171,6 +231,7 @@ const Settings: React.FC = () => {
             console.log('Saving General Settings:', values);
             await new Promise(resolve => setTimeout(resolve, 1000));
             message.success('General settings saved successfully!');
+            goBackToSettings();
         } catch (error) {
             message.error('Failed to save general settings.');
         } finally {
@@ -185,6 +246,7 @@ const Settings: React.FC = () => {
             console.log('Saving Financial Defaults:', values);
             await new Promise(resolve => setTimeout(resolve, 1000));
             message.success('Financial defaults saved successfully!');
+            goBackToSettings();
         } catch (error) {
             message.error('Failed to save financial defaults.');
         } finally {
@@ -198,7 +260,7 @@ const Settings: React.FC = () => {
             console.log('Saving Notification Settings:', values);
             await new Promise(resolve => setTimeout(resolve, 1000));
             message.success('Notification settings saved successfully!');
-            closeDrawer();
+            goBackToSettings();
         } catch (error) {
             message.error('Failed to save notification settings.');
         } finally {
@@ -212,7 +274,7 @@ const Settings: React.FC = () => {
             console.log('Saving Profile:', values);
             await new Promise(resolve => setTimeout(resolve, 1000));
             message.success('Profile updated successfully!');
-            closeDrawer();
+            goBackToSettings();
         } catch (error) {
             message.error('Failed to update profile.');
         } finally {
@@ -227,7 +289,7 @@ const Settings: React.FC = () => {
             await new Promise(resolve => setTimeout(resolve, 1000));
             message.success('Password changed successfully!');
             passwordForm.resetFields();
-            closeDrawer();
+            goBackToSettings();
         } catch (error) {
             message.error('Failed to change password.');
         } finally {
@@ -236,7 +298,7 @@ const Settings: React.FC = () => {
     };
 
     const renderDrawerContent = () => {
-        switch (currentDrawer) {
+        switch (activeView) {
             case 'profile':
                 return (
                     <div>
@@ -333,33 +395,88 @@ const Settings: React.FC = () => {
                 );
 
             case 'loginActivities':
+                const columns: ColumnsType<LoginActivity> = [
+                    {
+                        title: 'Login Time',
+                        dataIndex: 'loginTime',
+                        key: 'loginTime',
+                        render: (time: string) => (
+                            <Tooltip title={dayjs(time).format('DD/MM/YYYY HH:mm:ss')}>
+                                <span>{dayjs(time).fromNow()}</span>
+                            </Tooltip>
+                        ),
+                    },
+                    {
+                        title: 'Device',
+                        dataIndex: 'deviceType',
+                        key: 'deviceType',
+                        render: (deviceType: string, record: LoginActivity) => (
+                            <div>
+                                <div><strong>{deviceType}</strong></div>
+                                <Text type="secondary" style={{ fontSize: '12px' }}>
+                                    {record.userAgent.length > 50 
+                                        ? record.userAgent.substring(0, 50) + '...' 
+                                        : record.userAgent
+                                    }
+                                </Text>
+                            </div>
+                        ),
+                    },
+                    {
+                        title: 'IP Address',
+                        dataIndex: 'ipAddress',
+                        key: 'ipAddress',
+                    },
+                    {
+                        title: 'Location',
+                        dataIndex: 'location',
+                        key: 'location',
+                        render: (location: string | null) => location || '-',
+                    },
+                    {
+                        title: 'Status',
+                        dataIndex: 'status',
+                        key: 'status',
+                        render: (status: string) => (
+                            <Tag color={status === 'SUCCESS' ? 'success' : 'error'}>
+                                {status}
+                            </Tag>
+                        ),
+                    },
+                    {
+                        title: 'Session',
+                        key: 'session',
+                        render: (_, record: LoginActivity) => (
+                            record.logoutTime ? (
+                                <Tooltip title={`Logged out: ${dayjs(record.logoutTime).format('DD/MM/YYYY HH:mm:ss')}`}>
+                                    <Tag>Ended</Tag>
+                                </Tooltip>
+                            ) : (
+                                <Tag color="green">Active</Tag>
+                            )
+                        ),
+                    },
+                ];
+
                 return (
                     <div>
                         <Text type="secondary">Recent login activities and active sessions</Text>
                         <Divider />
-                        <Card className="mb-3" size="small">
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                <div>
-                                    <Text strong>Chrome on Windows</Text>
-                                    <br />
-                                    <Text type="secondary">Nairobi, Kenya • 2 minutes ago</Text>
-                                </div>
-                                <Text type="success">Active Now</Text>
-                            </div>
-                        </Card>
-                        <Card className="mb-3" size="small">
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                <div>
-                                    <Text strong>Mobile App on Android</Text>
-                                    <br />
-                                    <Text type="secondary">Mombasa, Kenya • 1 day ago</Text>
-                                </div>
-                                <Button size="small" danger>Revoke</Button>
-                            </div>
-                        </Card>
-                        <Button type="primary" danger block icon={<LogoutOutlined />} style={{ marginTop: 16 }}>
-                            Sign Out All Devices
-                        </Button>
+                        <Table
+                            dataSource={loginActivities}
+                            columns={columns}
+                            rowKey="id"
+                            loading={loadingActivities}
+                            pagination={{
+                                current: activitiesPagination.current,
+                                pageSize: activitiesPagination.pageSize,
+                                total: activitiesPagination.total,
+                                onChange: (page, pageSize) => loadLoginActivities(page, pageSize),
+                                showSizeChanger: true,
+                                showTotal: (total) => `Total ${total} activities`,
+                                pageSizeOptions: ['10', '20', '50'],
+                            }}
+                        />
                     </div>
                 );
 
@@ -559,70 +676,81 @@ const Settings: React.FC = () => {
     return (
         <div>
             <PageHeader 
-                title="Settings" 
-                breadcrumbs={[
-                    { title: 'Settings' }
-                ]} 
+                title={activeView ? settingsCards.find(c => c.key === activeView)?.title || 'Settings' : 'Settings'}
+                breadcrumbs={
+                    activeView 
+                        ? [
+                            { title: 'Settings' },
+                            { title: settingsCards.find(c => c.key === activeView)?.title || '' }
+                          ]
+                        : [{ title: 'Settings' }]
+                }
             />
             
             <div style={{ backgroundColor: '#f0f2f5', minHeight: '100vh' }}>
-                {/* User Info Card */}
-                <Card style={{ marginBottom: 24 }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-                        <Avatar size={64} icon={<UserOutlined />} style={{ backgroundColor: '#1890ff' }} />
-                        <div>
-                            <Title level={5} style={{ margin: 0 }}>{user?.email || 'user@example.com'}</Title>
-                            <Text type="secondary">{user?.location || 'KE'}</Text>
-                            <br />
-                            <Text type="secondary">{user?.role || 'ADMIN'}</Text>
+                {!activeView ? (
+                    <>
+                        {/* User Info Card */}
+                        <Card style={{ marginBottom: 24 }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+                                <Avatar size={64} icon={<UserOutlined />} style={{ backgroundColor: '#1890ff' }} />
+                                <div>
+                                    <Title level={5} style={{ margin: 0 }}>{user?.email || 'user@example.com'}</Title>
+                                    <Text type="secondary">{user?.location || 'KE'}</Text>
+                                    <br />
+                                    <Text type="secondary">{user?.role || 'ADMIN'}</Text>
+                                </div>
+                            </div>
+                        </Card>
+
+                        {/* Settings Categories */}
+                        {['Account', 'Security', 'System', 'Preferences'].map((category) => (
+                            <div key={category} style={{ marginBottom: 24 }}>
+                                <Title level={5} style={{ marginBottom: 16, color: '#595959' }}>{category}</Title>
+                                <Row gutter={[16, 16]}>
+                                    {settingsCards
+                                        .filter(card => card.category === category)
+                                        .map((card) => (
+                                            <Col xs={24} sm={12} md={8} lg={6} key={card.key}>
+                                                <Card
+                                                    hoverable
+                                                    onClick={() => openView(card.key)}
+                                                    style={{ height: '100%' }}
+                                                >
+                                                    <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12 }}>
+                                                        <div>{card.icon}</div>
+                                                        <div style={{ flex: 1 }}>
+                                                            <Text strong style={{ display: 'block', marginBottom: 4 }}>
+                                                                {card.title}
+                                                            </Text>
+                                                            <Text type="secondary" style={{ fontSize: 12 }}>
+                                                                {card.description}
+                                                            </Text>
+                                                        </div>
+                                                        <RightOutlined style={{ color: '#ac202d' }} />
+                                                    </div>
+                                                </Card>
+                                            </Col>
+                                        ))}
+                                </Row>
+                            </div>
+                        ))}
+                    </>
+                ) : (
+                    <Card>
+                        <div style={{ marginBottom: 24 }}>
+                            <Button 
+                                icon={<ArrowLeftOutlined />} 
+                                onClick={goBackToSettings}
+                                style={{ marginBottom: 16 }}
+                            >
+                                Back to Settings
+                            </Button>
                         </div>
-                    </div>
-                </Card>
-
-                {/* Settings Categories */}
-                {['Account', 'Security', 'System', 'Preferences'].map((category) => (
-                    <div key={category} style={{ marginBottom: 24 }}>
-                        <Title level={5} style={{ marginBottom: 16, color: '#595959' }}>{category}</Title>
-                        <Row gutter={[16, 16]}>
-                            {settingsCards
-                                .filter(card => card.category === category)
-                                .map((card) => (
-                                    <Col xs={24} sm={12} md={8} lg={6} key={card.key}>
-                                        <Card
-                                            hoverable
-                                            onClick={() => openDrawer(card.key)}
-                                            style={{ height: '100%' }}
-                                        >
-                                            <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12 }}>
-                                                <div>{card.icon}</div>
-                                                <div style={{ flex: 1 }}>
-                                                    <Text strong style={{ display: 'block', marginBottom: 4 }}>
-                                                        {card.title}
-                                                    </Text>
-                                                    <Text type="secondary" style={{ fontSize: 12 }}>
-                                                        {card.description}
-                                                    </Text>
-                                                </div>
-                                                <RightOutlined style={{ color: '#ac202d' }} />
-                                            </div>
-                                        </Card>
-                                    </Col>
-                                ))}
-                        </Row>
-                    </div>
-                ))}
+                        {renderDrawerContent()}
+                    </Card>
+                )}
             </div>
-
-            {/* Settings Drawer */}
-            <Drawer
-                title={settingsCards.find(c => c.key === currentDrawer)?.title || 'Settings'}
-                placement="right"
-                width={500}
-                onClose={closeDrawer}
-                open={drawerVisible}
-            >
-                {renderDrawerContent()}
-            </Drawer>
         </div>
     );
 };
