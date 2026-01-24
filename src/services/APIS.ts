@@ -13,6 +13,7 @@ export const APIS = {
   CHANGE_PASSWORD: `${BASE_URL}/settings/change-password`,
   TWO_FA_STATUS: `${BASE_URL}/settings/2fa-status`,
   SET_2FA: `${BASE_URL}/settings/set-2fa`,
+  FINANCIAL_DEFAULTS: `${BASE_URL}/settings/financial-defaults`,
   CREATE_BRANCH: `${BASE_URL}/branches/create`,
   ROLES: `${BASE_URL}/users/roles`,
   ALL_PERMISSONS: `${BASE_URL}/users/permissions`,

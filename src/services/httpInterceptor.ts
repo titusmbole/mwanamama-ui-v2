@@ -68,7 +68,6 @@ http.interceptors.response.use(
       if (status >= 200 && status < 300) {
         // Only show for non-GET requests to avoid excessive notifications
         if (response.config.method !== 'get') {
-            console.log("Im runnning in a sucecess response");
           showSuccess(data.message);
         }
       }

@@ -127,10 +127,10 @@ interface GeneralSettings {
 }
 
 interface FinancialSettings {
-    defaultInterestRate: number; // as percentage
-    maxLoanAmount: number;
-    loanTermUnit: 'Days' | 'Weeks' | 'Months' | 'Years';
-    gracePeriodDays: number;
+    defaultAnnualInterestRate: number;
+    maximumLoanAmount: number;
+    defaultLoanTermUnit: string;
+    loanGracePeriodDays: number;
 }
 
 interface NotificationSettings {
@@ -148,10 +148,10 @@ const initialGeneralSettings: GeneralSettings = {
 };
 
 const initialFinancialSettings: FinancialSettings = {
-    defaultInterestRate: 15.0,
-    maxLoanAmount: 50000,
-    loanTermUnit: 'Months',
-    gracePeriodDays: 3,
+    defaultAnnualInterestRate: 15.0,
+    maximumLoanAmount: 50000,
+    defaultLoanTermUnit: 'Months',
+    loanGracePeriodDays: 3,
 };
 
 const initialNotificationSettings: NotificationSettings = {
@@ -225,6 +225,21 @@ const Settings: React.FC = () => {
         }
     };
 
+    const fetchFinancialDefaults = async () => {
+        try {
+            const response = await http.get(APIS.FINANCIAL_DEFAULTS);
+            const data = response.data;
+            financialForm.setFieldsValue({
+                defaultAnnualInterestRate: data.defaultAnnualInterestRate,
+                maximumLoanAmount: data.maximumLoanAmount,
+                defaultLoanTermUnit: data.defaultLoanTermUnit,
+                loanGracePeriodDays: data.loanGracePeriodDays,
+            });
+        } catch (error: any) {
+            console.error('Failed to fetch financial defaults:', error);
+        }
+    };
+
     const loadLoginActivities = async (page = 1, pageSize = 10) => {
         setLoadingActivities(true);
         try {
@@ -257,6 +272,8 @@ const Settings: React.FC = () => {
             loadLoginActivities();
         } else if (activeView === 'twoFactor') {
             fetch2FAStatus();
+        } else if (activeView === 'financial') {
+            fetchFinancialDefaults();
         }
     }, [activeView]);
 
@@ -278,13 +295,16 @@ const Settings: React.FC = () => {
     const onSaveFinancial = async (values: FinancialSettings) => {
         setIsLoading(true);
         try {
-            // Mock API call to save financial settings
-            console.log('Saving Financial Defaults:', values);
-            await new Promise(resolve => setTimeout(resolve, 1000));
-            message.success('Financial defaults saved successfully!');
+            await http.put(APIS.FINANCIAL_DEFAULTS, {
+                defaultAnnualInterestRate: values.defaultAnnualInterestRate,
+                maximumLoanAmount: values.maximumLoanAmount,
+                defaultLoanTermUnit: values.defaultLoanTermUnit,
+                loanGracePeriodDays: values.loanGracePeriodDays,
+            });
+            message.success('Financial defaults updated successfully!');
             goBackToSettings();
-        } catch (error) {
-            message.error('Failed to save financial defaults.');
+        } catch (error: any) {
+            message.error(error.response?.data?.message || 'Failed to update financial defaults.');
         } finally {
             setIsLoading(false);
         }
@@ -635,13 +655,13 @@ const Settings: React.FC = () => {
                         initialValues={initialFinancialSettings}
                         onFinish={onSaveFinancial}
                     >
-                        <Form.Item name="defaultInterestRate" label="Default Annual Interest Rate (%)" rules={[{ required: true }]}>
+                        <Form.Item name="defaultAnnualInterestRate" label="Default Annual Interest Rate (%)" rules={[{ required: true }]}>
                             <Input size="large" suffix="%" type="number" step="0.1" />
                         </Form.Item>
-                        <Form.Item name="maxLoanAmount" label="Maximum Loan Amount" rules={[{ required: true }]}>
+                        <Form.Item name="maximumLoanAmount" label="Maximum Loan Amount" rules={[{ required: true }]}>
                             <Input size="large" prefix="Ksh" type="number" />
                         </Form.Item>
-                        <Form.Item name="loanTermUnit" label="Default Loan Term Unit" rules={[{ required: true }]}>
+                        <Form.Item name="defaultLoanTermUnit" label="Default Loan Term Unit" rules={[{ required: true }]}>
                             <Select size="large">
                                 <Option value="Days">Days</Option>
                                 <Option value="Weeks">Weeks</Option>
@@ -649,7 +669,7 @@ const Settings: React.FC = () => {
                                 <Option value="Years">Years</Option>
                             </Select>
                         </Form.Item>
-                        <Form.Item name="gracePeriodDays" label="Loan Grace Period (Days)" rules={[{ required: true }]}>
+                        <Form.Item name="loanGracePeriodDays" label="Loan Grace Period (Days)" rules={[{ required: true }]}>
                             <Input size="large" suffix="Days" type="number" />
                         </Form.Item>
                         <Form.Item>
@@ -787,8 +807,8 @@ const Settings: React.FC = () => {
                             <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
                                 <Avatar size={64} icon={<UserOutlined />} style={{ backgroundColor: '#ac202d' }} />
                                 <div>
-                                    <Title level={5} style={{ margin: 0 }}>{user?.email || 'user@example.com'}</Title>
-                                    <Text type="secondary">{user?.location || 'KE'}</Text>
+                                    <Title level={5} style={{ margin: 0 }}>{user?.name || '--'}</Title>
+                                    <Text type="secondary">{user?.email || '--'}</Text>
                                     <br />
                                     <Text type="secondary">{user?.role || 'ADMIN'}</Text>
                                 </div>
