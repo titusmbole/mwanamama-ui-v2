@@ -186,7 +186,7 @@ const OtpVerification: React.FC = () => {
             <Button 
               type="link" 
               onClick={() => navigate("/auth/login")}
-              style={{ padding: 0 }}
+              style={{ padding: 0, color: "#ac202d" }}
             >
               Back to Login
             </Button>

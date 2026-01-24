@@ -80,7 +80,7 @@ const ForgotPassword: React.FC = () => {
 
         <div style={{ textAlign: "center", marginTop: 16 }}>
           <Text>
-            Remember your password? <Link to="/auth/login">Sign In</Link>
+            Remember your password? <Link to="/auth/login" style={{color: "#ac202d"}}>Sign In</Link>
           </Text>
         </div>
       </Card>

@@ -785,7 +785,7 @@ const Settings: React.FC = () => {
                         {/* User Info Card */}
                         <Card style={{ marginBottom: 24 }}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-                                <Avatar size={64} icon={<UserOutlined />} style={{ backgroundColor: '#1890ff' }} />
+                                <Avatar size={64} icon={<UserOutlined />} style={{ backgroundColor: '#ac202d' }} />
                                 <div>
                                     <Title level={5} style={{ margin: 0 }}>{user?.email || 'user@example.com'}</Title>
                                     <Text type="secondary">{user?.location || 'KE'}</Text>

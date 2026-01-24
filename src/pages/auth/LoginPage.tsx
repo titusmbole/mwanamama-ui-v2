@@ -125,7 +125,7 @@ const LoginPage: React.FC = () => {
               <Form.Item name="remember" valuePropName="checked" noStyle>
                 <Checkbox>Keep me logged in</Checkbox>
               </Form.Item>
-              <Link to="/auth/forgot-password">Forgot Password?</Link>
+              <Link to="/auth/forgot-password" style={{color: "#ac202d"}}>Forgot Password?</Link>
             </div>
           </Form.Item>
 
