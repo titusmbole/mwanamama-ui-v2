@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Button, Table, Modal, Form, Input, message, Popconfirm, Tag, Switch } from 'antd';
+import { Button, Table, Modal, Form, Input, message, Popconfirm, Tag, Switch, Descriptions } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import { PlusOutlined, EditOutlined, DeleteOutlined, PlusCircleOutlined } from '@ant-design/icons';
 import PageHeader from '../../components/common/Layout/PageHeader';
@@ -11,6 +11,7 @@ interface SubCategory {
   id: number;
   subCategoryName: string;
   slug: string;
+  description?: string;
 }
 
 interface Category {
@@ -19,6 +20,8 @@ interface Category {
   slug: string;
   active: boolean;
   subCategories: SubCategory[];
+  categoryCode?: string;
+  description?: string;
 }
 
 const Categories: React.FC = () => {
@@ -30,6 +33,7 @@ const Categories: React.FC = () => {
   const [createModalOpen, setCreateModalOpen] = useState(false);
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [subCategoryModalOpen, setSubCategoryModalOpen] = useState(false);
+  const [viewModalOpen, setViewModalOpen] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState<Category | null>(null);
   
   const [submitting, setSubmitting] = useState(false);
@@ -94,6 +98,8 @@ const Categories: React.FC = () => {
       categoryName: category.categoryName,
       slug: category.slug,
       active: category.active,
+      categoryCode: category.categoryCode,
+      description: category.description,
     });
     setEditModalOpen(true);
   };
@@ -140,6 +146,11 @@ const Categories: React.FC = () => {
     setSubCategoryModalOpen(true);
   };
 
+  const handleView = (category: Category) => {
+    setSelectedCategory(category);
+    setViewModalOpen(true);
+  };
+
   const handleCreateSubCategory = async (values: any) => {
     if (!selectedCategory) return;
     
@@ -177,6 +188,12 @@ const Categories: React.FC = () => {
       key: 'categoryName',
     },
     {
+      title: 'Category Code',
+      dataIndex: 'categoryCode',
+      key: 'categoryCode',
+      render: (code) => code || 'N/A',
+    },
+    {
       title: 'Slug',
       dataIndex: 'slug',
       key: 'slug',
@@ -196,21 +213,14 @@ const Categories: React.FC = () => {
       ),
     },
     {
-      title: 'Subcategories',
+      title: 'Sub. Cats',
       dataIndex: 'subCategories',
       key: 'subCategories',
-      render: (subCategories: SubCategory[]) => (
-        <div>
-          {subCategories.length > 0 ? (
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
-              {subCategories.map((sub) => (
-                <Tag key={sub.id}>{sub.subCategoryName}</Tag>
-              ))}
-            </div>
-          ) : (
-            <Tag color="default">No subcategories</Tag>
-          )}
-        </div>
+      align: 'center',
+      render: (subs: SubCategory[], record) => (
+        <Button type="link" onClick={() => handleAddSubCategory(record)}>
+          {Array.isArray(subs) ? subs.length : 0}
+        </Button>
       ),
     },
     {
@@ -228,6 +238,7 @@ const Categories: React.FC = () => {
             Sub
           </Button>
           <Button type="link" size="small" icon={<EditOutlined />} onClick={() => handleEdit(record)} />
+          <Button type="link" size="small" onClick={() => handleView(record)}>View</Button>
           <Popconfirm
             title="Delete category?"
             description="This will also delete all subcategories"
@@ -288,8 +299,14 @@ const Categories: React.FC = () => {
           <Form.Item name="categoryName" label="Category Name" rules={[{ required: true }]}>
             <Input />
           </Form.Item>
+          <Form.Item name="categoryCode" label="Category Code" rules={[{ required: true }]}> 
+            <Input placeholder="e.g., CAT-001" />
+          </Form.Item>
           <Form.Item name="slug" label="Slug" rules={[{ required: true }]}>
             <Input placeholder="e.g., electronics, clothing" />
+          </Form.Item>
+          <Form.Item name="description" label="Description"> 
+            <Input.TextArea rows={3} />
           </Form.Item>
           <Form.Item name="active" label="Active" initialValue={true} valuePropName="checked">
             <Switch checkedChildren="Active" unCheckedChildren="Inactive" />
@@ -309,8 +326,14 @@ const Categories: React.FC = () => {
           <Form.Item name="categoryName" label="Category Name" rules={[{ required: true }]}>
             <Input />
           </Form.Item>
+          <Form.Item name="categoryCode" label="Category Code" rules={[{ required: true }]}> 
+            <Input />
+          </Form.Item>
           <Form.Item name="slug" label="Slug" rules={[{ required: true }]}>
             <Input />
+          </Form.Item>
+          <Form.Item name="description" label="Description"> 
+            <Input.TextArea rows={3} />
           </Form.Item>
           <Form.Item name="active" label="Active" valuePropName="checked">
             <Switch checkedChildren="Active" unCheckedChildren="Inactive" />
@@ -333,23 +356,58 @@ const Categories: React.FC = () => {
           <Form.Item name="slug" label="Slug" rules={[{ required: true }]}>
             <Input placeholder="e.g., smartphones, laptops" />
           </Form.Item>
+          <Form.Item name="description" label="Description"> 
+            <Input.TextArea rows={3} />
+          </Form.Item>
         </Form>
-
         {selectedCategory && selectedCategory.subCategories.length > 0 && (
           <div style={{ marginTop: 16 }}>
-            <strong>Existing Subcategories:</strong>
-            <div style={{ marginTop: 8, display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-              {selectedCategory.subCategories.map((sub) => (
-                <Tag
-                  key={sub.id}
-                  closable
-                  onClose={() => handleDeleteSubCategory(sub.id)}
-                >
-                  {sub.subCategoryName}
-                </Tag>
-              ))}
-            </div>
+            <Table
+              dataSource={selectedCategory.subCategories}
+              rowKey="id"
+              pagination={false}
+              columns={[
+                { title: 'Subcategory Name', dataIndex: 'subCategoryName', key: 'subCategoryName' },
+                { title: 'Description', dataIndex: 'description', key: 'description', render: (text) => text || 'N/A' },
+                {
+                  title: 'Actions',
+                  key: 'actions',
+                  width: 100,
+                  render: (_, sub) => (
+                    <Popconfirm
+                      title="Delete subcategory?"
+                      onConfirm={() => handleDeleteSubCategory(sub.id)}
+                      okText="Yes"
+                      cancelText="No"
+                    >
+                      <Button type="link" danger>Delete</Button>
+                    </Popconfirm>
+                  ),
+                },
+              ]}
+            />
           </div>
+        )}
+      </Modal>
+
+      {/* View Category Modal */}
+      <Modal
+        title={`Category: ${selectedCategory?.categoryName}`}
+        open={viewModalOpen}
+        onCancel={() => setViewModalOpen(false)}
+        footer={null}
+      >
+        {selectedCategory && (
+          <Descriptions bordered size="small" column={1}>
+            <Descriptions.Item label="Name">{selectedCategory.categoryName}</Descriptions.Item>
+            <Descriptions.Item label="Code">{selectedCategory.categoryCode || 'N/A'}</Descriptions.Item>
+            <Descriptions.Item label="Slug">{selectedCategory.slug}</Descriptions.Item>
+            <Descriptions.Item label="Description">{selectedCategory.description || 'N/A'}</Descriptions.Item>
+            <Descriptions.Item label="Status">
+              {selectedCategory.active ? <Tag color="green">Active</Tag> : <Tag>Inactive</Tag>}
+            </Descriptions.Item>
+            <Descriptions.Item label="Sub Categories Count">{selectedCategory.subCategories?.length || 0}</Descriptions.Item>
+          </Descriptions>
         )}
       </Modal>
     </div>

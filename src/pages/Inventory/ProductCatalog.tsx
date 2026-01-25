@@ -83,7 +83,8 @@ const ProductCatalog: React.FC = () => {
     try {
       setLoading(true);
       const params: any = { page: page - 1, size: pageSize }; // Backend uses 0-indexed pages
-      if (search) params.search = search;
+      const term = (search || '').trim();
+      if (term.length > 0) params.search = term;
 
       const response = await http.get(APIS.LOAD_PRODUCTS, { params });
       
@@ -133,8 +134,9 @@ const ProductCatalog: React.FC = () => {
   };
 
   const handleSearch = (value: string) => {
-    setSearchText(value);
-    loadData(1, pagination.pageSize, value);
+    const term = (value || '').trim();
+    setSearchText(term);
+    loadData(1, pagination.pageSize, term);
   };
 
   const handleCategoryChange = (categoryId: number, isEdit = false) => {
@@ -501,7 +503,7 @@ const ProductCatalog: React.FC = () => {
         <Input.Search
           placeholder="Search products..."
           onSearch={handleSearch}
-          onChange={(e) => e.target.value === '' && handleSearch('')}
+          onChange={(e) => e.target.value === '' ? handleSearch('') : undefined}
           style={{ marginBottom: 16, maxWidth: 400 }}
           allowClear
         />
