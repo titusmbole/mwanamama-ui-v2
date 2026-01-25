@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Button, Table, Modal, Form, Input, message, Popconfirm, Tag, Switch, Descriptions } from 'antd';
+import { Button, Table, Modal, Form, Input, message, Popconfirm, Tag, Switch, Descriptions, Select } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import { PlusOutlined, EditOutlined, DeleteOutlined, PlusCircleOutlined } from '@ant-design/icons';
 import PageHeader from '../../components/common/Layout/PageHeader';
@@ -158,10 +158,19 @@ const Categories: React.FC = () => {
     
     setSubmitting(true);
     try {
-      await http.post(APIS.CREATE_SUBCATEGORY, {
-        ...values,
+      const names: string[] = Array.isArray(values.subCategoryNames)
+        ? values.subCategoryNames
+            .map((n: any) => String(n).trim())
+            .filter((n: string) => n.length > 0)
+        : [];
+
+      const payload = {
+        subCategoryNames: names,
+        description: values.description || '',
         categoryId: selectedCategory.id,
-      });
+      };
+
+      await http.post(APIS.CREATE_SUBCATEGORY, payload);
       message.success('Subcategory created successfully');
       setSubCategoryModalOpen(false);
       subCategoryForm.resetFields();
@@ -352,11 +361,16 @@ const Categories: React.FC = () => {
         confirmLoading={submitting}
       >
         <Form form={subCategoryForm} layout="vertical" onFinish={handleCreateSubCategory}>
-          <Form.Item name="subCategoryName" label="Subcategory Name" rules={[{ required: true }]}>
-            <Input />
-          </Form.Item>
-          <Form.Item name="slug" label="Slug" rules={[{ required: true }]}>
-            <Input placeholder="e.g., smartphones, laptops" />
+          <Form.Item
+            name="subCategoryNames"
+            label="Subcategory Names"
+            rules={[{ required: true, message: 'Enter at least one subcategory name' }]}
+          > 
+            <Select
+              mode="tags"
+              tokenSeparators={[',']}
+              placeholder="Type a name and press Enter to add multiple"
+            />
           </Form.Item>
           <Form.Item name="description" label="Description"> 
             <Input.TextArea rows={3} />
