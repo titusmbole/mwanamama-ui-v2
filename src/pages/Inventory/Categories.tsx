@@ -197,23 +197,30 @@ const Categories: React.FC = () => {
       title: 'Category Name',
       dataIndex: 'categoryName',
       key: 'categoryName',
+      width: 220,
+      ellipsis: true,
     },
     {
       title: 'Category Code',
       dataIndex: 'categoryCode',
       key: 'categoryCode',
+      width: 130,
+      ellipsis: true,
       render: (code) => code || 'N/A',
     },
     {
       title: 'Slug',
       dataIndex: 'slug',
       key: 'slug',
+      width: 220,
+      ellipsis: true,
     },
     {
       title: 'Status',
       dataIndex: 'active',
       key: 'active',
       align: 'center',
+      width: 120,
       render: (active, record) => (
         <Switch
           checked={active}
@@ -228,6 +235,7 @@ const Categories: React.FC = () => {
       dataIndex: 'subCategories',
       key: 'subCategories',
       align: 'center',
+      width: 110,
       render: (subs: SubCategory[], record) => (
         <Button type="link" onClick={() => handleAddSubCategory(record)}>
           {Array.isArray(subs) ? subs.length : 0}
@@ -237,7 +245,7 @@ const Categories: React.FC = () => {
     {
       title: 'Actions',
       key: 'actions',
-      width: 160,
+      width: 200,
       render: (_, record) => (
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
           <Button
@@ -295,6 +303,9 @@ const Categories: React.FC = () => {
           loading={loading}
           pagination={pagination}
           onChange={handleTableChange}
+          size="middle"
+          tableLayout="fixed"
+          scroll={{ x: 1000 }}
         />
       </PageCard>
 
