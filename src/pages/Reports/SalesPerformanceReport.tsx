@@ -1,339 +1,514 @@
 import React, { useState, useEffect } from 'react';
-import { 
-  Card, Row, Col, Statistic, Table, Select, DatePicker, Button, Space, message, Spin, Progress, Tag
-} from 'antd';
+import { Table, message, Card, Statistic, Tabs, DatePicker, Button, Tag, Alert, Spin } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
+import type { Dayjs } from 'dayjs';
 import { 
-  ShoppingCartOutlined, UserOutlined, DollarCircleOutlined, RiseOutlined,
-  TrophyOutlined, DownloadOutlined
+  DollarCircleOutlined, RiseOutlined, FallOutlined, 
+  ShoppingCartOutlined, UserOutlined, ShopOutlined, InboxOutlined
 } from '@ant-design/icons';
 import PageHeader from '../../components/common/Layout/PageHeader';
 import PageCard from '../../components/common/PageCard/PageCard';
-import http from '../../services/httpInterceptor';
 import { APIS } from '../../services/APIS';
-import dayjs, { Dayjs } from 'dayjs';
+import http from '../../services/httpInterceptor';
+import dayjs from 'dayjs';
 
 const { RangePicker } = DatePicker;
-const { Option } = Select;
 
-interface SalesAgent {
-  id: number;
-  name: string;
-  totalSales: number;
-  orderCount: number;
-  averageOrderValue: number;
-  target: number;
-  achievement: number;
-  rank: number;
+const MONTHLY_TARGET_AMOUNT = 1000000;
+
+interface Summary {
+  totalSales?: number;
+  totalRevenue: number;
 }
 
-interface ProductSales {
+interface SalesPerformanceOfficer {
   id: number;
-  productName: string;
-  category: string;
-  unitsSold: number;
-  revenue: number;
+  agentName: string;
+  branchName: string;
+  totalRevenue: number;
+  totalSales: number;
+  totalQuantitySold: number;
+  averageSaleValue: number;
+  activeProducts: number;
 }
 
-interface SalesData {
+interface SalesPerformanceProduct {
+  id: number;
+  itemCode: string;
+  itemName: string;
+  totalQuantitySold: number;
+  totalRevenue: number;
+  unitPrice: number;
+  averageMonthlySales: number;
+  topSellingBranch: string;
+  stockLevel: number;
+  lastSaleDate: string;
+}
+
+interface SalesPerformanceBranch {
+  id: number;
+  branchName: string;
+  branchCode: string;
+  totalRevenue: number;
   totalSales: number;
-  totalOrders: number;
-  averageOrderValue: number;
-  topPerformer: string;
-  salesAgents: SalesAgent[];
-  topProducts: ProductSales[];
+  activeOfficers: number;
+  topProduct: string;
+  averageSaleValue: number;
+  monthlyGrowth: number | string;
+  lastSaleDate: string;
 }
 
 const SalesPerformanceReport: React.FC = () => {
+  const [activeTab, setActiveTab] = useState<'officer' | 'product' | 'branch'>('officer');
+  const [data, setData] = useState<any[]>([]);
+  const [summary, setSummary] = useState<Summary | null>(null);
   const [loading, setLoading] = useState(false);
-  const [data, setData] = useState<SalesData | null>(null);
-  const [selectedBranch, setSelectedBranch] = useState<string>('all');
-  const [dateRange, setDateRange] = useState<[Dayjs, Dayjs]>([
-    dayjs().startOf('month'),
-    dayjs().endOf('month')
-  ]);
-  const [branches, setBranches] = useState<any[]>([]);
+  const [loadingSummary, setLoadingSummary] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [startDate, setStartDate] = useState<string | null>(null);
+  const [endDate, setEndDate] = useState<string | null>(null);
+  const [pagination, setPagination] = useState({ current: 1, pageSize: 10, total: 0 });
 
   useEffect(() => {
-    fetchBranches();
-  }, []);
+    loadSummary();
+  }, [startDate, endDate]);
 
   useEffect(() => {
-    if (branches.length > 0) {
-      fetchData();
-    }
-  }, [selectedBranch, dateRange, branches]);
+    loadData();
+  }, [activeTab, startDate, endDate]);
 
-  const fetchBranches = async () => {
+  const loadSummary = async () => {
     try {
-      const response = await http.get(APIS.LOAD_BRANCHES);
-      setBranches(response.data.content || []);
-    } catch (error: any) {
-      message.error('Failed to load branches');
+      setLoadingSummary(true);
+      setError(null);
+      const params: any = {};
+      if (startDate) params.startDate = startDate;
+      if (endDate) params.endDate = endDate;
+      
+      const response = await http.get(APIS.SALES_PERFORMANCE_SUMMARY, { params });
+      setSummary(response.data);
+    } catch (err: any) {
+      console.error("Summary fetch error:", err);
+      setError("Failed to load summary data");
+    } finally {
+      setLoadingSummary(false);
     }
   };
 
-  const fetchData = async () => {
-    setLoading(true);
+  const loadData = async (page = 1, pageSize = 10) => {
     try {
-      const params = {
-        branchId: selectedBranch === 'all' ? undefined : selectedBranch,
-        startDate: dateRange[0].format('YYYY-MM-DD'),
-        endDate: dateRange[1].format('YYYY-MM-DD')
-      };
+      setLoading(true);
+      const params: any = { page: page - 1, size: pageSize };
+      if (startDate) params.startDate = startDate;
+      if (endDate) params.endDate = endDate;
+
+      let apiUrl = '';
+      switch (activeTab) {
+        case 'officer':
+          apiUrl = APIS.SALES_PERFORMANCE_BY_OFFICER;
+          break;
+        case 'product':
+          apiUrl = APIS.SALES_PERFORMANCE_BY_PRODUCT;
+          break;
+        case 'branch':
+          apiUrl = APIS.SALES_PERFORMANCE_BY_BRANCH;
+          break;
+      }
+
+      const response = await http.get(apiUrl, { params });
       
-      const response = await http.get(APIS.SALES_PERFORMANCE_REPORT, { params });
-      setData(response.data);
+      if (response.data.content) {
+        setData(response.data.content);
+        setPagination({ current: page, pageSize, total: response.data.totalElements || 0 });
+      } else {
+        setData(Array.isArray(response.data) ? response.data : []);
+        setPagination({ current: 1, pageSize: 10, total: Array.isArray(response.data) ? response.data.length : 0 });
+      }
     } catch (error: any) {
       message.error(error.response?.data?.message || 'Failed to load sales performance data');
-      // Mock data for development
-      setData({
-        totalSales: 12500000,
-        totalOrders: 487,
-        averageOrderValue: 25667,
-        topPerformer: 'Sarah Johnson',
-        salesAgents: [
-          { id: 1, name: 'Sarah Johnson', totalSales: 3500000, orderCount: 142, averageOrderValue: 24648, target: 3000000, achievement: 116.67, rank: 1 },
-          { id: 2, name: 'Michael Chen', totalSales: 2800000, orderCount: 98, averageOrderValue: 28571, target: 2500000, achievement: 112.00, rank: 2 },
-          { id: 3, name: 'Emily Williams', totalSales: 2300000, orderCount: 105, averageOrderValue: 21905, target: 2200000, achievement: 104.55, rank: 3 },
-          { id: 4, name: 'David Brown', totalSales: 1950000, orderCount: 78, averageOrderValue: 25000, target: 2000000, achievement: 97.50, rank: 4 },
-          { id: 5, name: 'Lisa Anderson', totalSales: 1950000, orderCount: 64, averageOrderValue: 30469, target: 2000000, achievement: 97.50, rank: 5 }
-        ],
-        topProducts: [
-          { id: 1, productName: 'Premium Motorcycle', category: 'Motor Bikes', unitsSold: 45, revenue: 4500000 },
-          { id: 2, productName: 'Spare Parts Kit', category: 'Spare Parts', unitsSold: 230, revenue: 2300000 },
-          { id: 3, productName: 'Economy Motorcycle', category: 'Motor Bikes', unitsSold: 67, revenue: 2010000 },
-          { id: 4, productName: 'Insurance Package', category: 'Services', unitsSold: 150, revenue: 1500000 },
-          { id: 5, productName: 'Maintenance Package', category: 'Services', unitsSold: 180, revenue: 900000 }
-        ]
-      });
     } finally {
       setLoading(false);
     }
   };
 
-  const handleExport = async () => {
-    try {
-      message.success('Exporting sales performance report...');
-    } catch (error: any) {
-      message.error('Failed to export report');
+  const handleTableChange = (newPagination: any) => {
+    loadData(newPagination.current, newPagination.pageSize);
+  };
+
+  const handleDateRangeChange = (dates: any) => {
+    if (dates) {
+      setStartDate(dates[0].format('YYYY-MM-DD'));
+      setEndDate(dates[1].format('YYYY-MM-DD'));
+    } else {
+      setStartDate(null);
+      setEndDate(null);
     }
   };
 
-  const agentColumns: ColumnsType<SalesAgent> = [
+  const formatCurrency = (amount: number | undefined | null) => {
+    if (amount === undefined || amount === null) return 'Ksh 0.00';
+    return `Ksh ${amount.toLocaleString('en-US', { minimumFractionDigits: 2 })}`;
+  };
+
+  const officerColumns: ColumnsType<SalesPerformanceOfficer> = [
     {
-      title: 'Rank',
-      dataIndex: 'rank',
-      key: 'rank',
-      width: 80,
-      render: (rank: number) => (
-        <Space>
-          {rank === 1 && <TrophyOutlined style={{ color: '#FFD700' }} />}
-          {rank === 2 && <TrophyOutlined style={{ color: '#C0C0C0' }} />}
-          {rank === 3 && <TrophyOutlined style={{ color: '#CD7F32' }} />}
-          {rank}
-        </Space>
-      )
+      title: 'Officer Name',
+      dataIndex: 'agentName',
+      key: 'agentName',
     },
     {
-      title: 'Sales Agent',
-      dataIndex: 'name',
-      key: 'name'
+      title: 'Branch',
+      dataIndex: 'branchName',
+      key: 'branchName',
     },
     {
-      title: 'Total Sales',
+      title: 'Total Sales (Revenue)',
+      dataIndex: 'totalRevenue',
+      key: 'totalRevenue',
+      align: 'right',
+      render: (amount) => (
+        <span className="font-semibold text-green-600">{formatCurrency(amount)}</span>
+      ),
+    },
+    {
+      title: 'Total Sales Count',
       dataIndex: 'totalSales',
       key: 'totalSales',
-      render: (value: number) => `KES ${value.toLocaleString()}`
-    },
-    {
-      title: 'Orders',
-      dataIndex: 'orderCount',
-      key: 'orderCount'
-    },
-    {
-      title: 'Avg Order Value',
-      dataIndex: 'averageOrderValue',
-      key: 'averageOrderValue',
-      render: (value: number) => `KES ${value.toLocaleString()}`
-    },
-    {
-      title: 'Target',
-      dataIndex: 'target',
-      key: 'target',
-      render: (value: number) => `KES ${value.toLocaleString()}`
-    },
-    {
-      title: 'Achievement',
-      key: 'achievement',
-      render: (_, record: SalesAgent) => (
-        <Space direction="vertical" size="small" style={{ width: '100%' }}>
-          <Progress 
-            percent={record.achievement} 
-            size="small"
-            status={record.achievement >= 100 ? 'success' : record.achievement >= 80 ? 'active' : 'exception'}
-          />
-          <span>{record.achievement.toFixed(1)}%</span>
-        </Space>
-      )
-    }
-  ];
-
-  const productColumns: ColumnsType<ProductSales> = [
-    {
-      title: 'Product Name',
-      dataIndex: 'productName',
-      key: 'productName'
-    },
-    {
-      title: 'Category',
-      dataIndex: 'category',
-      key: 'category',
-      render: (category: string) => <Tag color="blue">{category}</Tag>
+      align: 'right',
+      render: (count) => <span className="font-medium text-blue-600">{count ?? '-'}</span>,
     },
     {
       title: 'Units Sold',
-      dataIndex: 'unitsSold',
-      key: 'unitsSold'
+      dataIndex: 'totalQuantitySold',
+      key: 'totalQuantitySold',
+      align: 'right',
+      render: (count) => count?.toLocaleString() || '-',
+    },
+    {
+      title: 'Avg Sale Value',
+      dataIndex: 'averageSaleValue',
+      key: 'averageSaleValue',
+      align: 'right',
+      render: (amount) => formatCurrency(amount),
+    },
+    {
+      title: 'Active Products',
+      dataIndex: 'activeProducts',
+      key: 'activeProducts',
+      align: 'right',
+    },
+  ];
+
+  const productColumns: ColumnsType<SalesPerformanceProduct> = [
+    {
+      title: 'Product Code',
+      dataIndex: 'itemCode',
+      key: 'itemCode',
+      render: (code) => (
+        <span className="text-xs font-mono text-gray-600 bg-gray-100 px-2 py-1 rounded">
+          {code || '-'}
+        </span>
+      ),
+    },
+    {
+      title: 'Product Name',
+      dataIndex: 'itemName',
+      key: 'itemName',
+    },
+    {
+      title: 'Units Sold',
+      dataIndex: 'totalQuantitySold',
+      key: 'totalQuantitySold',
+      align: 'right',
+      render: (count) => (
+        <span className="font-medium text-blue-600">
+          {count?.toLocaleString() || '-'}
+        </span>
+      ),
     },
     {
       title: 'Revenue',
-      dataIndex: 'revenue',
-      key: 'revenue',
-      render: (value: number) => `KES ${value.toLocaleString()}`
-    }
+      dataIndex: 'totalRevenue',
+      key: 'totalRevenue',
+      align: 'right',
+      render: (amount) => (
+        <span className="font-semibold text-green-600">{formatCurrency(amount)}</span>
+      ),
+    },
+    {
+      title: 'Unit Price',
+      dataIndex: 'unitPrice',
+      key: 'unitPrice',
+      align: 'right',
+      render: (amount) => formatCurrency(amount),
+    },
+    {
+      title: 'Avg Monthly Sales',
+      dataIndex: 'averageMonthlySales',
+      key: 'averageMonthlySales',
+      align: 'right',
+      render: (amount) => formatCurrency(amount),
+    },
+    {
+      title: 'Top Branch',
+      dataIndex: 'topSellingBranch',
+      key: 'topSellingBranch',
+    },
+    {
+      title: 'Current Stock',
+      dataIndex: 'stockLevel',
+      key: 'stockLevel',
+      align: 'center',
+      render: (level) => (
+        <Tag
+          color={
+            level > 50 ? 'green' : level > 20 ? 'orange' : 'red'
+          }
+        >
+          {level ?? '-'}
+        </Tag>
+      ),
+    },
+    {
+      title: 'Last Sale Date',
+      dataIndex: 'lastSaleDate',
+      key: 'lastSaleDate',
+      render: (date) => date ? new Date(date).toLocaleDateString() : 'N/A',
+    },
   ];
+
+  const branchColumns: ColumnsType<SalesPerformanceBranch> = [
+    {
+      title: 'Branch Name',
+      dataIndex: 'branchName',
+      key: 'branchName',
+    },
+    {
+      title: 'Branch Code',
+      dataIndex: 'branchCode',
+      key: 'branchCode',
+      render: (code) => (
+        <span className="text-xs font-mono text-gray-600 bg-gray-100 px-2 py-1 rounded">
+          {code || '-'}
+        </span>
+      ),
+    },
+    {
+      title: 'Total Sales (Revenue)',
+      dataIndex: 'totalRevenue',
+      key: 'totalRevenue',
+      align: 'right',
+      render: (amount) => (
+        <span className="font-semibold text-green-600">{formatCurrency(amount)}</span>
+      ),
+    },
+    {
+      title: 'Total Sales Count',
+      dataIndex: 'totalSales',
+      key: 'totalSales',
+      align: 'right',
+      render: (count) => <span className="font-medium text-blue-600">{count ?? '-'}</span>,
+    },
+    {
+      title: 'Active Officers',
+      dataIndex: 'activeOfficers',
+      key: 'activeOfficers',
+      align: 'right',
+    },
+    {
+      title: 'Best Selling Product',
+      dataIndex: 'topProduct',
+      key: 'topProduct',
+    },
+    {
+      title: 'Avg Sale Value',
+      dataIndex: 'averageSaleValue',
+      key: 'averageSaleValue',
+      align: 'right',
+      render: (amount) => formatCurrency(amount),
+    },
+    {
+      title: 'Monthly Growth %',
+      dataIndex: 'monthlyGrowth',
+      key: 'monthlyGrowth',
+      align: 'center',
+      render: (growth) => {
+        const growthValue = typeof growth === 'string' ? parseFloat(growth.replace('%', '')) : growth;
+        return (
+          <div className="flex items-center justify-center gap-1">
+            {growthValue >= 0 ? (
+              <RiseOutlined style={{ color: '#52c41a' }} />
+            ) : (
+              <FallOutlined style={{ color: '#f5222d' }} />
+            )}
+            <span
+              className={`font-medium ${
+                growthValue >= 0 ? 'text-green-600' : 'text-red-600'
+              }`}
+            >
+              {growth ? `${growthValue > 0 ? '+' : ''}${growth}` : '-'}
+            </span>
+          </div>
+        );
+      },
+    },
+    {
+      title: 'Last Sale Date',
+      dataIndex: 'lastSaleDate',
+      key: 'lastSaleDate',
+      render: (date) => date ? new Date(date).toLocaleDateString() : 'N/A',
+    },
+  ];
+
+  const getColumnsForTab = () => {
+    switch (activeTab) {
+      case 'officer':
+        return officerColumns;
+      case 'product':
+        return productColumns;
+      case 'branch':
+        return branchColumns;
+      default:
+        return officerColumns;
+    }
+  };
 
   return (
     <div>
       <PageHeader 
         title="Sales Performance Report" 
         breadcrumbs={[
+          { title: 'Reports' },
           { title: 'Sales Performance' }
         ]} 
       />
 
+      {/* Date Range Filters */}
       <PageCard>
-        <Space direction="vertical" size="large" style={{ width: '100%' }}>
-          <Row gutter={16}>
-            <Col xs={24} sm={12} md={8}>
-              <Select
-                style={{ width: '100%' }}
-                placeholder="Select Branch"
-                value={selectedBranch}
-                onChange={setSelectedBranch}
-              >
-                <Option value="all">All Branches</Option>
-                {branches.map((branch: any) => (
-                  <Option key={branch.id} value={branch.id}>
-                    {branch.branchName}
-                  </Option>
-                ))}
-              </Select>
-            </Col>
-            <Col xs={24} sm={12} md={10}>
-              <RangePicker
-                style={{ width: '100%' }}
-                value={dateRange}
-                onChange={(dates) => dates && setDateRange(dates as [Dayjs, Dayjs])}
-              />
-            </Col>
-            <Col xs={24} sm={24} md={6}>
-              <Button 
-                icon={<DownloadOutlined />}
-                onClick={handleExport}
-                block
-              >
-                Export Report
-              </Button>
-            </Col>
-          </Row>
+        <div className="flex items-end gap-4">
+          <div className="flex-1">
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Date Range
+            </label>
+            <RangePicker 
+              onChange={handleDateRangeChange}
+              style={{ width: '100%' }}
+              size="large"
+            />
+          </div>
+        </div>
+      </PageCard>
 
-          {loading ? (
-            <div style={{ textAlign: 'center', padding: '50px' }}>
-              <Spin size="large" />
-            </div>
-          ) : data ? (
-            <>
-              <Row gutter={16}>
-                <Col xs={24} sm={12} md={6}>
-                  <Card>
-                    <Statistic
-                      title="Total Sales"
-                      value={data.totalSales}
-                      prefix={<DollarCircleOutlined />}
-                      valueStyle={{ color: '#3f8600' }}
-                      formatter={(value) => `KES ${value.toLocaleString()}`}
-                    />
-                  </Card>
-                </Col>
-                <Col xs={24} sm={12} md={6}>
-                  <Card>
-                    <Statistic
-                      title="Total Orders"
-                      value={data.totalOrders}
-                      prefix={<ShoppingCartOutlined />}
-                      valueStyle={{ color: '#1890ff' }}
-                    />
-                  </Card>
-                </Col>
-                <Col xs={24} sm={12} md={6}>
-                  <Card>
-                    <Statistic
-                      title="Avg Order Value"
-                      value={data.averageOrderValue}
-                      prefix={<RiseOutlined />}
-                      formatter={(value) => `KES ${value.toLocaleString()}`}
-                    />
-                  </Card>
-                </Col>
-                <Col xs={24} sm={12} md={6}>
-                  <Card>
-                    <Statistic
-                      title="Top Performer"
-                      value={data.topPerformer}
-                      prefix={<UserOutlined />}
-                      valueStyle={{ fontSize: 16 }}
-                    />
-                  </Card>
-                </Col>
-              </Row>
+      {/* Summary Cards */}
+      {loadingSummary ? (
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mt-6 mb-6">
+          {Array(4).fill(0).map((_, idx) => (
+            <Card key={idx} loading={true} />
+          ))}
+        </div>
+      ) : error ? (
+        <Alert
+          message="Error"
+          description={error}
+          type="error"
+          showIcon
+          className="mt-6 mb-6"
+        />
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mt-6 mb-6">
+          <Card className="bg-blue-50" bordered={false}>
+            <Statistic
+              title="Total Sales (Revenue)"
+              value={summary?.totalRevenue || summary?.totalSales || 0}
+              valueStyle={{ color: '#1890ff' }}
+              prefix={<DollarCircleOutlined />}
+              formatter={(value) => formatCurrency(Number(value))}
+            />
+          </Card>
+          
+          <Card className="bg-green-50" bordered={false}>
+            <Statistic
+              title="Total Revenue"
+              value={summary?.totalRevenue || 0}
+              valueStyle={{ color: '#52c41a' }}
+              prefix={<ShoppingCartOutlined />}
+              formatter={(value) => formatCurrency(Number(value))}
+            />
+          </Card>
+          
+          <Card className="bg-purple-50" bordered={false}>
+            <Statistic
+              title="Monthly Target"
+              value={MONTHLY_TARGET_AMOUNT}
+              valueStyle={{ color: '#722ed1' }}
+              prefix={<RiseOutlined />}
+              formatter={(value) => formatCurrency(Number(value))}
+            />
+          </Card>
+          
+          <Card className="bg-orange-50" bordered={false}>
+            <Statistic
+              title="Achievement"
+              value={summary?.totalRevenue ? Math.round((summary.totalRevenue / MONTHLY_TARGET_AMOUNT) * 100) : 0}
+              valueStyle={{ color: '#fa8c16' }}
+              prefix={<FallOutlined />}
+              suffix="%"
+            />
+          </Card>
+        </div>
+      )}
 
-              <Card 
-                title={
-                  <Space>
-                    <UserOutlined />
-                    Sales Agents Performance
-                  </Space>
-                }
-              >
-                <Table
-                  columns={agentColumns}
-                  dataSource={data.salesAgents}
-                  pagination={false}
-                  rowKey="id"
-                  scroll={{ x: 900 }}
-                />
-              </Card>
-
-              <Card 
-                title={
-                  <Space>
-                    <ShoppingCartOutlined />
-                    Top Selling Products
-                  </Space>
-                }
-              >
-                <Table
-                  columns={productColumns}
-                  dataSource={data.topProducts}
-                  pagination={false}
-                  rowKey="id"
-                />
-              </Card>
-            </>
-          ) : null}
-        </Space>
+      {/* Tabs and Table */}
+      <PageCard>
+        <Tabs 
+          activeKey={activeTab} 
+          onChange={(key) => setActiveTab(key as 'officer' | 'product' | 'branch')}
+        >
+          <Tabs.TabPane 
+            tab={<span className="flex items-center gap-2"><UserOutlined /> By Officer</span>} 
+            key="officer"
+          >
+            <Table
+              columns={getColumnsForTab()}
+              dataSource={data}
+              rowKey="id"
+              loading={loading}
+              pagination={pagination}
+              onChange={handleTableChange}
+              scroll={{ x: 1200 }}
+            />
+          </Tabs.TabPane>
+          
+          <Tabs.TabPane 
+            tab={<span className="flex items-center gap-2"><InboxOutlined /> By Product</span>} 
+            key="product"
+          >
+            <Table
+              columns={getColumnsForTab()}
+              dataSource={data}
+              rowKey="id"
+              loading={loading}
+              pagination={pagination}
+              onChange={handleTableChange}
+              scroll={{ x: 1400 }}
+            />
+          </Tabs.TabPane>
+          
+          <Tabs.TabPane 
+            tab={<span className="flex items-center gap-2"><ShopOutlined /> By Branch</span>} 
+            key="branch"
+          >
+            <Table
+              columns={getColumnsForTab()}
+              dataSource={data}
+              rowKey="id"
+              loading={loading}
+              pagination={pagination}
+              onChange={handleTableChange}
+              scroll={{ x: 1400 }}
+            />
+          </Tabs.TabPane>
+        </Tabs>
       </PageCard>
     </div>
   );

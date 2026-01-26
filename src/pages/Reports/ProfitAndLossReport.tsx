@@ -1,162 +1,163 @@
 import React, { useState, useEffect } from 'react';
-import { 
-  Card, Row, Col, Statistic, Table, Select, DatePicker, Button, Space, message, Spin
-} from 'antd';
+import { Card, Row, Col, Statistic, Table, Select, message, Spin, Alert } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import { 
-  DollarCircleOutlined, RiseOutlined, FallOutlined, FileTextOutlined,
-  DownloadOutlined, PrinterOutlined
+  DollarCircleOutlined, RiseOutlined, FallOutlined, 
+  CalculatorOutlined, WalletOutlined 
 } from '@ant-design/icons';
 import PageHeader from '../../components/common/Layout/PageHeader';
 import PageCard from '../../components/common/PageCard/PageCard';
 import http from '../../services/httpInterceptor';
 import { APIS } from '../../services/APIS';
-import dayjs, { Dayjs } from 'dayjs';
 
-const { RangePicker } = DatePicker;
 const { Option } = Select;
 
-interface RevenueItem {
+interface Loan {
   id: number;
-  category: string;
-  amount: number;
-  percentage: number;
-}
-
-interface ExpenseItem {
-  id: number;
-  category: string;
-  amount: number;
-  percentage: number;
+  clientName: string;
+  clientNumber: string;
+  principalAmount: number;
+  interestAmount: number;
+  arrearsAmount: number;
+  loanType?: string;
+  bookedBy: string;
 }
 
 interface ProfitLossData {
-  totalRevenue: number;
-  totalExpenses: number;
-  netProfit: number;
-  profitMargin: number;
-  revenues: RevenueItem[];
-  expenses: ExpenseItem[];
+  profit: number;
+  totalInterest: number;
+  totalRegFee: number;
+  loss: number;
+  revenue: number;
+  loans: Loan[];
 }
 
 const ProfitAndLossReport: React.FC = () => {
-  const [loading, setLoading] = useState(false);
+  const currentDate = new Date();
+  const currentYear = currentDate.getFullYear();
+  const currentMonth = currentDate.getMonth() + 1;
+
+  const [selectedMonth, setSelectedMonth] = useState<string>(currentMonth.toString());
+  const [selectedYear, setSelectedYear] = useState<string>(currentYear.toString());
   const [data, setData] = useState<ProfitLossData | null>(null);
-  const [selectedBranch, setSelectedBranch] = useState<string>('all');
-  const [dateRange, setDateRange] = useState<[Dayjs, Dayjs]>([
-    dayjs().startOf('month'),
-    dayjs().endOf('month')
-  ]);
-  const [branches, setBranches] = useState<any[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    fetchBranches();
-  }, []);
+  // Generate month options
+  const monthOptions = Array.from({ length: 12 }, (_, i) => ({
+    value: (i + 1).toString(),
+    label: new Date(0, i).toLocaleString('en', { month: 'long' })
+  }));
 
-  useEffect(() => {
-    if (branches.length > 0) {
-      fetchData();
-    }
-  }, [selectedBranch, dateRange, branches]);
-
-  const fetchBranches = async () => {
-    try {
-      const response = await http.get(APIS.LOAD_BRANCHES);
-      setBranches(response.data.content || []);
-    } catch (error: any) {
-      message.error('Failed to load branches');
-    }
-  };
+  // Generate year options (from 2020 to current year)
+  const yearOptions = Array.from({ length: currentYear - 2020 + 1 }, (_, i) => ({
+    value: (2020 + i).toString(),
+    label: (2020 + i).toString()
+  }));
 
   const fetchData = async () => {
     setLoading(true);
+    setError(null);
     try {
-      const params = {
-        branchId: selectedBranch === 'all' ? undefined : selectedBranch,
-        startDate: dateRange[0].format('YYYY-MM-DD'),
-        endDate: dateRange[1].format('YYYY-MM-DD')
-      };
-      
-      const response = await http.get(APIS.PROFIT_LOSS_REPORT, { params });
-      setData(response.data);
-    } catch (error: any) {
-      message.error(error.response?.data?.message || 'Failed to load profit & loss data');
-      // Mock data for development
-      setData({
-        totalRevenue: 5250000,
-        totalExpenses: 3180000,
-        netProfit: 2070000,
-        profitMargin: 39.43,
-        revenues: [
-          { id: 1, category: 'Interest Income', amount: 3500000, percentage: 66.67 },
-          { id: 2, category: 'Fees & Commissions', amount: 950000, percentage: 18.10 },
-          { id: 3, category: 'Product Sales', amount: 650000, percentage: 12.38 },
-          { id: 4, category: 'Other Income', amount: 150000, percentage: 2.86 }
-        ],
-        expenses: [
-          { id: 1, category: 'Staff Salaries', amount: 1500000, percentage: 47.17 },
-          { id: 2, category: 'Operational Costs', amount: 850000, percentage: 26.73 },
-          { id: 3, category: 'Loan Loss Provision', amount: 450000, percentage: 14.15 },
-          { id: 4, category: 'Administrative', amount: 280000, percentage: 8.81 },
-          { id: 5, category: 'Marketing', amount: 100000, percentage: 3.14 }
-        ]
+      const response = await http.get(APIS.PROFIT_AND_LOSS_REPORT, {
+        params: {
+          month: selectedMonth,
+          year: selectedYear
+        }
       });
+      setData(response.data);
+    } catch (err: any) {
+      console.error("Error fetching profit & loss data:", err);
+      setError(err.response?.data?.message || "Failed to load data");
+      message.error(err.response?.data?.message || "Failed to load data");
     } finally {
       setLoading(false);
     }
   };
 
-  const handleExport = async () => {
-    try {
-      message.success('Exporting profit & loss report...');
-      // Add export logic here
-    } catch (error: any) {
-      message.error('Failed to export report');
-    }
+  useEffect(() => {
+    fetchData();
+  }, [selectedMonth, selectedYear]);
+
+  const formatCurrency = (amount: number) => {
+    return `Ksh ${amount.toLocaleString('en-US', { minimumFractionDigits: 2 })}`;
   };
 
-  const handlePrint = () => {
-    window.print();
-  };
-
-  const revenueColumns: ColumnsType<RevenueItem> = [
+  const summaryCards = [
     {
-      title: 'Revenue Category',
-      dataIndex: 'category',
-      key: 'category'
+      title: "Total Revenue",
+      value: data?.revenue || 0,
+      icon: <WalletOutlined />,
+      color: "#52c41a",
+      bgColor: "bg-green-50"
     },
     {
-      title: 'Amount',
-      dataIndex: 'amount',
-      key: 'amount',
-      render: (amount: number) => `KES ${amount.toLocaleString()}`
+      title: "Total Interest",
+      value: data?.totalInterest || 0,
+      icon: <RiseOutlined />,
+      color: "#1890ff",
+      bgColor: "bg-blue-50"
     },
     {
-      title: 'Percentage',
-      dataIndex: 'percentage',
-      key: 'percentage',
-      render: (percentage: number) => `${percentage.toFixed(2)}%`
+      title: "Registration Fees",
+      value: data?.totalRegFee || 0,
+      icon: <CalculatorOutlined />,
+      color: "#722ed1",
+      bgColor: "bg-purple-50"
+    },
+    {
+      title: "Profit",
+      value: data?.profit || 0,
+      icon: <DollarCircleOutlined />,
+      color: "#52c41a",
+      bgColor: "bg-green-50"
+    },
+    {
+      title: "Loss",
+      value: data?.loss || 0,
+      icon: <FallOutlined />,
+      color: "#f5222d",
+      bgColor: "bg-red-50"
     }
   ];
 
-  const expenseColumns: ColumnsType<ExpenseItem> = [
+  const columns: ColumnsType<Loan> = [
     {
-      title: 'Expense Category',
-      dataIndex: 'category',
-      key: 'category'
+      title: 'Client Name',
+      dataIndex: 'clientName',
+      key: 'clientName',
     },
     {
-      title: 'Amount',
-      dataIndex: 'amount',
-      key: 'amount',
-      render: (amount: number) => `KES ${amount.toLocaleString()}`
+      title: 'Client Number',
+      dataIndex: 'clientNumber',
+      key: 'clientNumber',
     },
     {
-      title: 'Percentage',
-      dataIndex: 'percentage',
-      key: 'percentage',
-      render: (percentage: number) => `${percentage.toFixed(2)}%`
-    }
+      title: 'Principal Amount',
+      dataIndex: 'principalAmount',
+      key: 'principalAmount',
+      align: 'right',
+      render: (amount) => formatCurrency(amount),
+    },
+    {
+      title: 'Interest Amount',
+      dataIndex: 'interestAmount',
+      key: 'interestAmount',
+      align: 'right',
+      render: (amount) => formatCurrency(amount),
+    },
+    {
+      title: 'Arrears Amount',
+      dataIndex: 'arrearsAmount',
+      key: 'arrearsAmount',
+      align: 'right',
+      render: (amount) => formatCurrency(amount),
+    },
+    {
+      title: 'Booked By',
+      dataIndex: 'bookedBy',
+      key: 'bookedBy',
+    },
   ];
 
   return (
@@ -164,171 +165,104 @@ const ProfitAndLossReport: React.FC = () => {
       <PageHeader 
         title="Profit & Loss Report" 
         breadcrumbs={[
+          { title: 'Reports' },
           { title: 'Profit & Loss' }
         ]} 
       />
 
+      {/* Filters */}
       <PageCard>
-        <Space direction="vertical" size="large" style={{ width: '100%' }}>
-          {/* Filters */}
-          <Row gutter={16}>
-            <Col xs={24} sm={12} md={8}>
-              <Select
-                style={{ width: '100%' }}
-                placeholder="Select Branch"
-                value={selectedBranch}
-                onChange={setSelectedBranch}
-              >
-                <Option value="all">All Branches</Option>
-                {branches.map((branch: any) => (
-                  <Option key={branch.id} value={branch.id}>
-                    {branch.branchName}
-                  </Option>
-                ))}
-              </Select>
-            </Col>
-            <Col xs={24} sm={12} md={10}>
-              <RangePicker
-                style={{ width: '100%' }}
-                value={dateRange}
-                onChange={(dates) => dates && setDateRange(dates as [Dayjs, Dayjs])}
+        <div className="flex flex-col sm:flex-row gap-4 items-end">
+          <div className="flex-1">
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Month
+            </label>
+            <Select
+              value={selectedMonth}
+              onChange={setSelectedMonth}
+              style={{ width: '100%' }}
+              size="large"
+            >
+              {monthOptions.map(option => (
+                <Option key={option.value} value={option.value}>
+                  {option.label}
+                </Option>
+              ))}
+            </Select>
+          </div>
+          <div className="flex-1">
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Year
+            </label>
+            <Select
+              value={selectedYear}
+              onChange={setSelectedYear}
+              style={{ width: '100%' }}
+              size="large"
+            >
+              {yearOptions.map(option => (
+                <Option key={option.value} value={option.value}>
+                  {option.label}
+                </Option>
+              ))}
+            </Select>
+          </div>
+        </div>
+      </PageCard>
+
+      {/* Summary Cards */}
+      {loading ? (
+        <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4 mt-6">
+          {Array(5).fill(0).map((_, idx) => (
+            <Card key={idx} loading={true} />
+          ))}
+        </div>
+      ) : error ? (
+        <Alert
+          message="Error"
+          description={error}
+          type="error"
+          showIcon
+          className="mt-6"
+        />
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4 mt-6">
+          {summaryCards.map((card, index) => (
+            <Card
+              key={index}
+              className={card.bgColor}
+              bordered={false}
+            >
+              <Statistic
+                title={card.title}
+                value={card.value}
+                valueStyle={{ color: card.color }}
+                prefix={card.icon}
+                formatter={(value) => formatCurrency(Number(value))}
               />
-            </Col>
-            <Col xs={24} sm={24} md={6}>
-              <Space>
-                <Button 
-                  icon={<DownloadOutlined />}
-                  onClick={handleExport}
-                >
-                  Export
-                </Button>
-                <Button 
-                  icon={<PrinterOutlined />}
-                  onClick={handlePrint}
-                >
-                  Print
-                </Button>
-              </Space>
-            </Col>
-          </Row>
+            </Card>
+          ))}
+        </div>
+      )}
 
-          {loading ? (
-            <div style={{ textAlign: 'center', padding: '50px' }}>
-              <Spin size="large" />
-            </div>
-          ) : data ? (
-            <>
-              {/* Summary Statistics */}
-              <Row gutter={16}>
-                <Col xs={24} sm={12} md={6}>
-                  <Card>
-                    <Statistic
-                      title="Total Revenue"
-                      value={data.totalRevenue}
-                      prefix={<DollarCircleOutlined />}
-                      valueStyle={{ color: '#3f8600' }}
-                      formatter={(value) => `KES ${value.toLocaleString()}`}
-                    />
-                  </Card>
-                </Col>
-                <Col xs={24} sm={12} md={6}>
-                  <Card>
-                    <Statistic
-                      title="Total Expenses"
-                      value={data.totalExpenses}
-                      prefix={<DollarCircleOutlined />}
-                      valueStyle={{ color: '#cf1322' }}
-                      formatter={(value) => `KES ${value.toLocaleString()}`}
-                    />
-                  </Card>
-                </Col>
-                <Col xs={24} sm={12} md={6}>
-                  <Card>
-                    <Statistic
-                      title="Net Profit"
-                      value={data.netProfit}
-                      prefix={data.netProfit >= 0 ? <RiseOutlined /> : <FallOutlined />}
-                      valueStyle={{ color: data.netProfit >= 0 ? '#3f8600' : '#cf1322' }}
-                      formatter={(value) => `KES ${value.toLocaleString()}`}
-                    />
-                  </Card>
-                </Col>
-                <Col xs={24} sm={12} md={6}>
-                  <Card>
-                    <Statistic
-                      title="Profit Margin"
-                      value={data.profitMargin}
-                      suffix="%"
-                      valueStyle={{ color: data.profitMargin >= 0 ? '#3f8600' : '#cf1322' }}
-                    />
-                  </Card>
-                </Col>
-              </Row>
-
-              {/* Revenue Breakdown */}
-              <Card 
-                title={
-                  <Space>
-                    <FileTextOutlined />
-                    Revenue Breakdown
-                  </Space>
-                }
-              >
-                <Table
-                  columns={revenueColumns}
-                  dataSource={data.revenues}
-                  pagination={false}
-                  rowKey="id"
-                  summary={(pageData) => {
-                    const total = pageData.reduce((sum, record) => sum + record.amount, 0);
-                    return (
-                      <Table.Summary fixed>
-                        <Table.Summary.Row style={{ fontWeight: 'bold', backgroundColor: '#fafafa' }}>
-                          <Table.Summary.Cell index={0}>Total Revenue</Table.Summary.Cell>
-                          <Table.Summary.Cell index={1}>
-                            KES {total.toLocaleString()}
-                          </Table.Summary.Cell>
-                          <Table.Summary.Cell index={2}>100%</Table.Summary.Cell>
-                        </Table.Summary.Row>
-                      </Table.Summary>
-                    );
-                  }}
-                />
-              </Card>
-
-              {/* Expense Breakdown */}
-              <Card 
-                title={
-                  <Space>
-                    <FileTextOutlined />
-                    Expense Breakdown
-                  </Space>
-                }
-              >
-                <Table
-                  columns={expenseColumns}
-                  dataSource={data.expenses}
-                  pagination={false}
-                  rowKey="id"
-                  summary={(pageData) => {
-                    const total = pageData.reduce((sum, record) => sum + record.amount, 0);
-                    return (
-                      <Table.Summary fixed>
-                        <Table.Summary.Row style={{ fontWeight: 'bold', backgroundColor: '#fafafa' }}>
-                          <Table.Summary.Cell index={0}>Total Expenses</Table.Summary.Cell>
-                          <Table.Summary.Cell index={1}>
-                            KES {total.toLocaleString()}
-                          </Table.Summary.Cell>
-                          <Table.Summary.Cell index={2}>100%</Table.Summary.Cell>
-                        </Table.Summary.Row>
-                      </Table.Summary>
-                    );
-                  }}
-                />
-              </Card>
-            </>
-          ) : null}
-        </Space>
+      {/* Loans Table */}
+      <PageCard title="Loans in Arrears" style={{ marginTop: 24 }}>
+        {loading ? (
+          <div className="text-center py-8">
+            <Spin size="large" />
+          </div>
+        ) : data?.loans && data.loans.length > 0 ? (
+          <Table
+            columns={columns}
+            dataSource={data.loans}
+            rowKey="id"
+            pagination={{ pageSize: 10 }}
+          />
+        ) : (
+          <div className="text-center py-8 text-gray-500">
+            No loan data available for the selected period.
+          </div>
+        )}
       </PageCard>
     </div>
   );
