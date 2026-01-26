@@ -8,476 +8,639 @@ import {
   Skeleton, 
   Space, 
   Avatar, 
-  List, 
-  Segmented,
-  Badge,
+  Table,
+  Progress,
+  message,
   Flex,
-  Drawer,
+  Badge,
+  Alert,
   Button
 } from 'antd';
+import type { ColumnsType } from 'antd/es/table';
 import {
-  ArrowUpOutlined,
-  ArrowDownOutlined,
   DollarOutlined,
   UserOutlined,
-  WarningOutlined,
-  RiseOutlined,
-  TransactionOutlined,
   TeamOutlined,
-  BellOutlined,
-  CheckCircleOutlined,
-  FilterOutlined
+  RiseOutlined,
+  InboxOutlined,
+  InfoCircleOutlined,
+  SafetyOutlined,
+  LockOutlined,
+  SettingOutlined
 } from '@ant-design/icons';
+import { useNavigate } from 'react-router-dom';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import PageHeader from '../../components/common/Layout/PageHeader';
+import { useAuth } from '../../context/AuthContext';
+import { APIS } from '../../services/APIS';
+import http from '../../services/httpInterceptor';
 
 const { Title, Text } = Typography;
 
-const ModernDashboard = () => {
+interface DashboardData {
+  clients: number;
+  groups: number;
+  olb: number;
+  due: number;
+  paid: number;
+  savings: {
+    january: number;
+    february: number;
+    march: number;
+    april: number;
+    may: number;
+    june: number;
+    july: number;
+    august: number;
+    september: number;
+    october: number;
+    november: number;
+    december: number;
+  };
+  sheets: Array<{
+    collectionSheetNumber: string;
+    totalLoan: number;
+    id: number;
+    totalSavings: number;
+    groupNumber: string;
+    receiptNumber: string;
+    totalRegistration: number;
+  }>;
+  stock: Array<{
+    brandName: string;
+    currentStock: number;
+    categoryName: string;
+    productName: string;
+  }>;
+}
+
+const Dashboard = () => {
+  const { user } = useAuth();
+  const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
-  const [timePeriod, setTimePeriod] = useState('1M');
-  const [drawerVisible, setDrawerVisible] = useState(false);
-  const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+  const [dashboardData, setDashboardData] = useState<DashboardData | null>(null);
+  const [showV2Banner, setShowV2Banner] = useState(true);
 
   useEffect(() => {
-    const timer = setTimeout(() => setLoading(false), 1500);
-    return () => clearTimeout(timer);
+    fetchDashboardData();
   }, []);
 
-  useEffect(() => {
-    const handleResize = () => {
-      setIsMobile(window.innerWidth < 768);
-    };
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
-  }, []);
-
-  // Modern Skeleton Components
-  const StatCardSkeleton = () => (
-    <Card 
-      bordered={false}
-      styles={{
-        body: { padding: isMobile ? '16px' : '24px' }
-      }}
-    >
-      <Skeleton active paragraph={{ rows: 2 }} />
-    </Card>
-  );
-
-  const ActivitySkeleton = () => (
-    <Card 
-      bordered={false}
-      title={<Skeleton.Input active size="small" style={{ width: 150 }} />}
-    >
-      <List
-        itemLayout="horizontal"
-        dataSource={[1, 2, 3, 4]}
-        renderItem={() => (
-          <List.Item>
-            <Skeleton active avatar paragraph={{ rows: 1 }} />
-          </List.Item>
-        )}
-      />
-    </Card>
-  );
-
-  const ChartSkeleton = () => (
-    <Card 
-      bordered={false}
-      title={<Skeleton.Input active size="small" style={{ width: 200 }} />}
-    >
-      <Skeleton active paragraph={{ rows: 6 }} />
-    </Card>
-  );
-
-  // Activity Data
-  const activityData = [
-    {
-      title: 'Loan Repayment Received',
-      description: 'Client 101 • Payment ID: #LP-2847',
-      time: '2m ago',
-      icon: <DollarOutlined />,
-      color: '#52c41a',
-      status: 'success'
-    },
-    {
-      title: 'New Loan Disbursed',
-      description: 'Group 4 • Loan Amount: Ksh 50,000',
-      time: '15m ago',
-      icon: <TransactionOutlined />,
-      color: '#1677ff',
-      status: 'processing'
-    },
-    {
-      title: 'Payment Overdue Alert',
-      description: 'Client 245 • Due Date: Nov 20',
-      time: '1h ago',
-      icon: <WarningOutlined />,
-      color: '#ff4d4f',
-      status: 'error'
-    },
-    {
-      title: 'New Client Onboarded',
-      description: 'Individual Account • Client #1541',
-      time: '3h ago',
-      icon: <UserOutlined />,
-      color: '#722ed1',
-      status: 'default'
+  const fetchDashboardData = async () => {
+    try {
+      setLoading(true);
+      const response = await http.get(APIS.DASHBOARD);
+      setDashboardData(response.data);
+    } catch (error: any) {
+      message.error(error.response?.data?.message || 'Failed to load dashboard data');
+      console.error(error);
+    } finally {
+      setLoading(false);
     }
+  };
+
+  const formatCurrency = (amount: number) => {
+    return `Ksh ${amount.toLocaleString('en-US', { minimumFractionDigits: 2 })}`;
+  };
+
+  const getGreeting = () => {
+    const hour = new Date().getHours();
+    if (hour < 12) return 'Good Morning';
+    if (hour < 18) return 'Good Afternoon';
+    return 'Good Evening';
+  };
+
+  // Prepare chart data from savings
+  const chartData = dashboardData ? [
+    { month: 'Jan', amount: dashboardData.savings.january },
+    { month: 'Feb', amount: dashboardData.savings.february },
+    { month: 'Mar', amount: dashboardData.savings.march },
+    { month: 'Apr', amount: dashboardData.savings.april },
+    { month: 'May', amount: dashboardData.savings.may },
+    { month: 'Jun', amount: dashboardData.savings.june },
+    { month: 'Jul', amount: dashboardData.savings.july },
+    { month: 'Aug', amount: dashboardData.savings.august },
+    { month: 'Sep', amount: dashboardData.savings.september },
+    { month: 'Oct', amount: dashboardData.savings.october },
+    { month: 'Nov', amount: dashboardData.savings.november },
+    { month: 'Dec', amount: dashboardData.savings.december },
+  ] : [];
+
+  // Collection percentage
+  const collectionPercentage = dashboardData && dashboardData.due > 0 
+    ? (dashboardData.paid / dashboardData.due) * 100 
+    : 0;
+
+  // Stock table columns
+  const stockColumns: ColumnsType<any> = [
+    {
+      title: 'Product Name',
+      dataIndex: 'productName',
+      key: 'productName',
+    },
+    {
+      title: 'Category',
+      dataIndex: 'categoryName',
+      key: 'categoryName',
+    },
+    {
+      title: 'Brand',
+      dataIndex: 'brandName',
+      key: 'brandName',
+    },
+    {
+      title: 'Current Stock',
+      dataIndex: 'currentStock',
+      key: 'currentStock',
+      align: 'right',
+    },
   ];
 
-  const quickInsights = [
-    { label: 'Avg. Loan Size', value: 'Ksh 45.2K', trend: 'up' },
-    { label: 'Default Rate', value: '1.5%', trend: 'down' },
-    { label: 'Pending Reviews', value: '23', trend: 'neutral' },
-    { label: 'This Month Revenue', value: '+Ksh 125K', trend: 'up' }
+  // Collection sheets table columns
+  const sheetsColumns: ColumnsType<any> = [
+    {
+      title: 'Collection Sheet Number',
+      dataIndex: 'collectionSheetNumber',
+      key: 'collectionSheetNumber',
+    },
+    {
+      title: 'Group Number',
+      dataIndex: 'groupNumber',
+      key: 'groupNumber',
+    },
+    {
+      title: 'Total Loan',
+      dataIndex: 'totalLoan',
+      key: 'totalLoan',
+      align: 'right',
+      render: (amount) => formatCurrency(amount),
+    },
+    {
+      title: 'Total Savings',
+      dataIndex: 'totalSavings',
+      key: 'totalSavings',
+      align: 'right',
+      render: (amount) => formatCurrency(amount),
+    },
+    {
+      title: 'Total Registration',
+      dataIndex: 'totalRegistration',
+      key: 'totalRegistration',
+      align: 'right',
+      render: (amount) => formatCurrency(amount),
+    },
+    {
+      title: 'Receipt Number',
+      dataIndex: 'receiptNumber',
+      key: 'receiptNumber',
+    },
   ];
 
-  const QuickInsightsContent = () => (
-    <Space direction="vertical" size="middle" style={{ width: '100%' }}>
-      {quickInsights.map((insight, index) => (
-        <Flex key={index} justify="space-between" align="center">
-          <Text type="secondary" style={{ fontSize: isMobile ? 13 : 14 }}>{insight.label}</Text>
-          <Flex align="center" gap={8}>
-            <Text strong style={{ fontSize: isMobile ? 14 : 16 }}>{insight.value}</Text>
-            {insight.trend === 'up' && <ArrowUpOutlined style={{ color: '#52c41a', fontSize: 12 }} />}
-            {insight.trend === 'down' && <ArrowDownOutlined style={{ color: '#52c41a', fontSize: 12 }} />}
+  if (loading) {
+    return (
+      <div>
+        <PageHeader 
+          title="Dashboard" 
+          breadcrumbs={[{ title: 'Dashboard' }]} 
+        />
+        
+        {/* Welcome Card Skeleton */}
+        <Card 
+          bordered={false}
+          style={{ marginBottom: 24, background: '#ac202d' }}
+          styles={{ body: { padding: '24px' } }}
+        >
+          <Flex justify="space-between" align="center" wrap="wrap" gap={12}>
+            <Space direction="vertical" size={0}>
+              <Skeleton.Input active size="large" style={{ width: 300, background: 'rgba(255,255,255,0.2)' }} />
+              <Skeleton.Input active size="small" style={{ width: 200, background: 'rgba(255,255,255,0.15)', marginTop: 8 }} />
+            </Space>
+            <Skeleton.Avatar active size={64} />
           </Flex>
-        </Flex>
-      ))}
-    </Space>
-  );
+        </Card>
+
+        {/* V2 Banner Skeleton */}
+        <Card bordered={false} style={{ marginBottom: 24 }}>
+          <Skeleton active paragraph={{ rows: 4 }} />
+        </Card>
+
+        {/* Metric Cards Skeleton */}
+        <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
+          {[1, 2, 3, 4].map(i => (
+            <Col xs={24} sm={12} lg={6} key={i}>
+              <Card bordered={false}>
+                <Skeleton active paragraph={{ rows: 2 }} />
+              </Card>
+            </Col>
+          ))}
+        </Row>
+
+        {/* Chart and Collections Skeleton */}
+        <Row gutter={[16, 16]}>
+          <Col xs={24} xl={14}>
+            <Card bordered={false}>
+              <Skeleton active paragraph={{ rows: 6 }} />
+            </Card>
+          </Col>
+          <Col xs={24} xl={10}>
+            <Card bordered={false}>
+              <Flex vertical align="center" gap={16} style={{ padding: '24px 0' }}>
+                <Skeleton.Avatar active size={200} shape="circle" />
+                <Skeleton.Input active size="small" style={{ width: 300 }} />
+                <Skeleton.Input active size="small" style={{ width: 250 }} />
+              </Flex>
+            </Card>
+          </Col>
+        </Row>
+
+        {/* Tables Skeleton */}
+        <Row gutter={[16, 16]} style={{ marginTop: 16 }}>
+          <Col xs={24} xl={10}>
+            <Card bordered={false}>
+              <Skeleton active paragraph={{ rows: 5 }} />
+            </Card>
+          </Col>
+          <Col xs={24} xl={14}>
+            <Card bordered={false}>
+              <Skeleton active paragraph={{ rows: 5 }} />
+            </Card>
+          </Col>
+        </Row>
+      </div>
+    );
+  }
 
   return (
     <div>
       <PageHeader 
         title="Dashboard" 
-        breadcrumbs={[
-          { title: 'Dashboard' }
-        ]} 
+        breadcrumbs={[{ title: 'Dashboard' }]} 
       />
-      
-      <div style={{ 
-        // minHeight: '100vh', 
-        // background: 'linear-gradient(135deg, #f5f7fa 0%, #e8f0fe 100%)',
-      }}>
-        <div style={{ maxWidth: 1600, margin: '0 auto' }}>
-       
-        {/* Statistics Cards */}
-        <Row gutter={[isMobile ? 12 : 16, isMobile ? 12 : 16]} style={{ marginBottom: isMobile ? 16 : 24 }}>
-          <Col xs={24} sm={12} lg={6}>
-            {loading ? <StatCardSkeleton /> : (
-              <Badge.Ribbon text="+12.5%" color="green">
-                <Card 
-                  bordered={false}
-                  hoverable
-                  styles={{
-                    body: { padding: isMobile ? '16px' : '24px', position: 'relative' }
-                  }}
-                >
-                  <Statistic
-                    title={<Text strong style={{ fontSize: isMobile ? 12 : 14 }}>Total Loan Portfolio</Text>}
-                    value="1.2M"
-                    prefix="Ksh"
-                    valueStyle={{ color: '#1677ff', fontSize: isMobile ? 22 : 28 }}
-                    suffix={<ArrowUpOutlined style={{ fontSize: isMobile ? 12 : 16 }} />}
-                  />
-                  <Avatar 
-                    size={isMobile ? 40 : 48} 
-                    icon={<DollarOutlined />} 
-                    style={{ 
-                      background: 'linear-gradient(135deg, #1677ff 0%, #40a9ff 100%)',
-                      position: 'absolute',
-                      top: isMobile ? 12 : 20,
-                      right: isMobile ? 12 : 20
-                    }} 
-                  />
-                </Card>
-              </Badge.Ribbon>
-            )}
-          </Col>
 
-          <Col xs={24} sm={12} lg={6}>
-            {loading ? <StatCardSkeleton /> : (
-              <Badge.Ribbon text="+2.3%" color="green">
-                <Card 
-                  bordered={false}
-                  hoverable
-                  styles={{
-                    body: { padding: isMobile ? '16px' : '24px', position: 'relative' }
-                  }}
-                >
-                  <Statistic
-                    title={<Text strong style={{ fontSize: isMobile ? 12 : 14 }}>Collection Rate</Text>}
-                    value={98.5}
-                    precision={1}
-                    suffix="%"
-                    valueStyle={{ color: '#52c41a', fontSize: isMobile ? 22 : 28 }}
-                    prefix={<RiseOutlined />}
-                  />
-                  <Avatar 
-                    size={isMobile ? 40 : 48} 
-                    icon={<RiseOutlined />} 
-                    style={{ 
-                      background: 'linear-gradient(135deg, #52c41a 0%, #73d13d 100%)',
-                      position: 'absolute',
-                      top: isMobile ? 12 : 20,
-                      right: isMobile ? 12 : 20
-                    }} 
-                  />
-                </Card>
-              </Badge.Ribbon>
-            )}
-          </Col>
+      {/* Welcome Message */}
+      <Card 
+        bordered={false}
+        style={{ 
+          marginBottom: 24,
+          background: '#ac202d',
+        }}
+        styles={{
+          body: { padding: '24px' }
+        }}
+      >
+        <Flex justify="space-between" align="center" wrap="wrap" gap={12}>
+          <Space direction="vertical" size={0}>
+            <Title 
+              level={3} 
+              style={{ margin: 0, color: 'white' }}
+            >
+              {getGreeting()}, {user?.name || 'User'}! 👋
+            </Title>
+            <Text style={{ color: 'rgba(255, 255, 255, 0.85)', fontSize: 15 }}>
+              Welcome back to your dashboard
+            </Text>
+          </Space>
+          <Avatar 
+            size={64} 
+            icon={<UserOutlined />}
+            style={{ 
+              background: 'rgba(255, 255, 255, 0.2)',
+              color: 'white',
+              fontSize: 28
+            }}
+          />
+        </Flex>
+      </Card>
 
-          <Col xs={24} sm={12} lg={6}>
-            {loading ? <StatCardSkeleton /> : (
-              <Badge.Ribbon text="+8.2%" color="purple">
-                <Card 
-                  bordered={false}
-                  hoverable
-                  styles={{
-                    body: { padding: isMobile ? '16px' : '24px', position: 'relative' }
-                  }}
-                >
-                  <Statistic
-                    title={<Text strong style={{ fontSize: isMobile ? 12 : 14 }}>Active Clients</Text>}
-                    value={1540}
-                    valueStyle={{ color: '#722ed1', fontSize: isMobile ? 22 : 28 }}
-                    suffix={<TeamOutlined style={{ fontSize: isMobile ? 12 : 16 }} />}
-                  />
-                  <Avatar 
-                    size={isMobile ? 40 : 48} 
-                    icon={<TeamOutlined />} 
-                    style={{ 
-                      background: 'linear-gradient(135deg, #722ed1 0%, #9254de 100%)',
-                      position: 'absolute',
-                      top: isMobile ? 12 : 20,
-                      right: isMobile ? 12 : 20
-                    }} 
-                  />
-                </Card>
-              </Badge.Ribbon>
-            )}
-          </Col>
-
-          <Col xs={24} sm={12} lg={6}>
-            {loading ? <StatCardSkeleton /> : (
-              <Badge.Ribbon text="-3.1%" color="green">
-                <Card 
-                  bordered={false}
-                  hoverable
-                  styles={{
-                    body: { padding: isMobile ? '16px' : '24px', position: 'relative' }
-                  }}
-                >
-                  <Statistic
-                    title={<Text strong style={{ fontSize: isMobile ? 12 : 14 }}>Loans in Arrears</Text>}
-                    value="5.2K"
-                    prefix="Ksh"
-                    valueStyle={{ color: '#ff4d4f', fontSize: isMobile ? 22 : 28 }}
-                    suffix={<ArrowDownOutlined style={{ fontSize: isMobile ? 12 : 16 }} />}
-                  />
-                  <Avatar 
-                    size={isMobile ? 40 : 48} 
-                    icon={<WarningOutlined />} 
-                    style={{ 
-                      background: 'linear-gradient(135deg, #ff4d4f 0%, #ff7875 100%)',
-                      position: 'absolute',
-                      top: isMobile ? 12 : 20,
-                      right: isMobile ? 12 : 20
-                    }} 
-                  />
-                </Card>
-              </Badge.Ribbon>
-            )}
-          </Col>
-        </Row>
-
-        {/* Mobile Quick Insights Button */}
-        {isMobile && (
-          <Button 
-            type="primary" 
-            icon={<FilterOutlined />} 
-            onClick={() => setDrawerVisible(true)}
-            style={{ marginBottom: 16, width: '100%' }}
-          >
-            View Quick Insights
-          </Button>
-        )}
-
-        {/* Content Grid */}
-        <Row gutter={[isMobile ? 12 : 16, isMobile ? 12 : 16]}>
-          {/* Activity Feed */}
-          <Col xs={24} lg={16}>
-            {loading ? <ActivitySkeleton /> : (
-              <Card 
-                bordered={false}
-                title={
-                  <Flex justify="space-between" align="center" wrap="wrap" gap={8}>
-                    <Space size={isMobile ? 8 : 12}>
-                      <BellOutlined style={{ fontSize: isMobile ? 16 : 20, color: '#1677ff' }} />
-                      <Title level={isMobile ? 5 : 4} style={{ margin: 0 }}>Recent Activity</Title>
-                    </Space>
-                    {!isMobile && (
-                      <Text type="secondary" style={{ cursor: 'pointer', fontSize: 14 }}>
-                        View All →
-                      </Text>
-                    )}
-                  </Flex>
-                }
-                styles={{
-                  body: { padding: isMobile ? '12px 16px' : '16px 24px' }
-                }}
-              >
-                <List
-                  itemLayout="horizontal"
-                  dataSource={activityData}
-                  renderItem={(item) => (
-                    <List.Item 
-                      style={{ 
-                        padding: isMobile ? '12px 0' : '16px 0',
-                        cursor: 'pointer',
-                        transition: 'all 0.3s'
-                      }}
-                      className="activity-item"
-                    >
-                      <List.Item.Meta
-                        avatar={
-                          <Avatar 
-                            size={isMobile ? 36 : 44} 
-                            icon={item.icon}
-                            style={{ 
-                              background: `${item.color}15`,
-                              color: item.color
-                            }}
-                          />
-                        }
-                        title={
-                          <Flex justify="space-between" align="center" wrap="wrap" gap={8}>
-                            <Text strong style={{ fontSize: isMobile ? 13 : 14 }}>{item.title}</Text>
-                            <Text type="secondary" style={{ fontSize: isMobile ? 11 : 12 }}>
-                              {item.time}
-                            </Text>
-                          </Flex>
-                        }
-                        description={
-                          <Text type="secondary" style={{ fontSize: isMobile ? 12 : 13 }}>
-                            {item.description}
-                          </Text>
-                        }
-                      />
-                    </List.Item>
-                  )}
-                />
-              </Card>
-            )}
-          </Col>
-
-          {/* Quick Insights - Desktop Only */}
-          {!isMobile && (
-            <Col xs={24} lg={8}>
-              {loading ? (
-                <Card bordered={false}>
-                  <Skeleton active paragraph={{ rows: 6 }} />
-                </Card>
-              ) : (
-                <Card 
-                  bordered={false}
-                  title={
-                    <Space>
-                      <CheckCircleOutlined style={{ fontSize: 20, color: '#52c41a' }} />
-                      <Title level={4} style={{ margin: 0 }}>Quick Insights</Title>
-                    </Space>
-                  }
-                >
-                  <QuickInsightsContent />
-                </Card>
-              )}
-            </Col>
-          )}
-        </Row>
-
-        {/* Chart Section */}
-        <Row gutter={[isMobile ? 12 : 16, isMobile ? 12 : 16]} style={{ marginTop: isMobile ? 12 : 16 }}>
-          <Col span={24}>
-            {loading ? <ChartSkeleton /> : (
-              <Card 
-                bordered={false}
-                title={
-                  <Flex justify="space-between" align="center" wrap="wrap" gap={12}>
-                    <Title level={isMobile ? 5 : 4} style={{ margin: 0 }}>Loan Performance</Title>
-                    <Segmented
-                      options={isMobile ? ['1M', '3M', '1Y'] : ['7D', '1M', '3M', '6M', '1Y']}
-                      value={timePeriod}
-                      onChange={setTimePeriod}
-                      size={isMobile ? 'small' : 'middle'}
-                    />
-                  </Flex>
-                }
-              >
-                <div style={{
-                  height: isMobile ? 240 : 320,
-                  background: 'linear-gradient(135deg, #e6f4ff 0%, #f0e6ff 100%)',
-                  borderRadius: 8,
-                  border: '2px dashed #d9d9d9',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  flexDirection: 'column',
-                  gap: 12
-                }}>
-                  <RiseOutlined style={{ fontSize: isMobile ? 36 : 48, color: '#bfbfbf' }} />
-                  <div style={{ textAlign: 'center', padding: '0 16px' }}>
-                    <Text strong style={{ display: 'block', fontSize: isMobile ? 14 : 16, color: '#8c8c8c' }}>
-                      Chart Component
+      {/* Version 2 Announcement Banner */}
+      {showV2Banner && (
+        <Alert
+          message={
+            <Flex align="center" gap={8}>
+              <InfoCircleOutlined style={{ fontSize: 20 }} />
+              <Text strong style={{ fontSize: 16 }}>Welcome to Version 2.0!</Text>
+            </Flex>
+          }
+          description={
+            <Space direction="vertical" size="middle" style={{ width: '100%' }}>
+              <Text>
+                We're excited to have you on our new and improved platform! Please note:
+              </Text>
+              <ul style={{ marginBottom: 0, paddingLeft: 20 }}>
+                <li>
+                  <Text>Some functionalities are still under development and will be fully available soon.</Text>
+                </li>
+                <li>
+                  <Flex align="center" gap={8}>
+                    <SafetyOutlined style={{ color: '#52c41a' }} />
+                    <Text>
+                      Your login credentials remain the same, but we strongly recommend updating your password.
                     </Text>
-                    <Text type="secondary" style={{ fontSize: isMobile ? 12 : 13 }}>
-                      Ready for integration
+                  </Flex>
+                </li>
+                <li>
+                  <Flex align="center" gap={8}>
+                    <LockOutlined style={{ color: '#1677ff' }} />
+                    <Text>
+                      Navigate to <Text strong>Settings</Text> to configure Two-Factor Authentication (2FA) for enhanced account security.
                     </Text>
-                  </div>
-                </div>
-              </Card>
-            )}
-          </Col>
-        </Row>
-
-        {/* Mobile Drawer for Quick Insights */}
-        <Drawer
-          title={
-            <Space>
-              <CheckCircleOutlined style={{ fontSize: 20, color: '#52c41a' }} />
-              <Text strong>Quick Insights</Text>
+                  </Flex>
+                </li>
+                <li>
+                  <Text>We're continuously working to bring you the best experience possible!</Text>
+                </li>
+              </ul>
+              <Flex gap={12} wrap="wrap">
+                <Button 
+                  type="primary" 
+                  icon={<SettingOutlined />}
+                  onClick={() => navigate('/settings')}
+                >
+                  Go to Settings
+                </Button>
+                <Button 
+                  icon={<LockOutlined />}
+                  onClick={() => navigate('/settings')}
+                >
+                  Update Password
+                </Button>
+              </Flex>
             </Space>
           }
-          placement="bottom"
-          onClose={() => setDrawerVisible(false)}
-          open={drawerVisible}
-          height="auto"
-        >
-          <QuickInsightsContent />
-        </Drawer>
-      </div>
+          type="info"
+          closable
+          onClose={() => setShowV2Banner(false)}
+          style={{ marginBottom: 24 }}
+          showIcon
+        />
+      )}
 
-      <style>{`
-        .activity-item:hover {
-          background: #f5f5f5;
-          border-radius: 8px;
-          padding-left: 12px !important;
-          padding-right: 12px !important;
-        }
-        
-        @media (max-width: 768px) {
-          .ant-statistic-title {
-            font-size: 12px !important;
-          }
-          .ant-card-head-title {
-            font-size: 14px !important;
-          }
-        }
-      `}</style>
-      </div>
+      <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
+        {/* Groups Card */}
+        <Col xs={24} sm={12} lg={6}>
+          <Badge.Ribbon text={`${dashboardData?.clients || 0} Clients`} color="purple">
+            <Card 
+              bordered={false} 
+              hoverable
+              styles={{
+                body: { padding: '24px', position: 'relative' }
+              }}
+            >
+              <Statistic
+                title={<Text strong style={{ fontSize: 14 }}>Groups</Text>}
+                value={dashboardData?.groups || 0}
+                valueStyle={{ color: '#722ed1', fontSize: 26 }}
+                formatter={(value) => (value as number).toLocaleString()}
+              />
+              <Avatar 
+                size={48} 
+                icon={<TeamOutlined />} 
+                style={{ 
+                  background: 'linear-gradient(135deg, #722ed1 0%, #9254de 100%)',
+                  position: 'absolute',
+                  top: 20,
+                  right: 20
+                }} 
+              />
+            </Card>
+          </Badge.Ribbon>
+        </Col>
+
+        {/* Clients Card */}
+        <Col xs={24} sm={12} lg={6}>
+          <Badge.Ribbon text={`${dashboardData?.groups || 0} Groups`} color="blue">
+            <Card 
+              bordered={false} 
+              hoverable
+              styles={{
+                body: { padding: '24px', position: 'relative' }
+              }}
+            >
+              <Statistic
+                title={<Text strong style={{ fontSize: 14 }}>Active Clients</Text>}
+                value={dashboardData?.clients || 0}
+                valueStyle={{ color: '#1677ff', fontSize: 26 }}
+                formatter={(value) => (value as number).toLocaleString()}
+              />
+              <Avatar 
+                size={48} 
+                icon={<UserOutlined />} 
+                style={{ 
+                  background: 'linear-gradient(135deg, #1677ff 0%, #40a9ff 100%)',
+                  position: 'absolute',
+                  top: 20,
+                  right: 20
+                }} 
+              />
+            </Card>
+          </Badge.Ribbon>
+        </Col>
+
+        {/* OLB Card */}
+        <Col xs={24} sm={12} lg={6}>
+          <Badge.Ribbon 
+            text={dashboardData ? `${((dashboardData.olb / 10000000) * 100).toFixed(1)}%` : '0%'} 
+            color="green"
+          >
+            <Card 
+              bordered={false} 
+              hoverable
+              styles={{
+                body: { padding: '24px', position: 'relative' }
+              }}
+            >
+              <Statistic
+                title={<Text strong style={{ fontSize: 14 }}>Total Loan Portfolio (OLB)</Text>}
+                value={dashboardData?.olb || 0}
+                prefix="Ksh"
+                valueStyle={{ color: '#52c41a', fontSize: 26 }}
+                formatter={(value) => (value as number).toLocaleString()}
+              />
+              <Avatar 
+                size={48} 
+                icon={<DollarOutlined />} 
+                style={{ 
+                  background: 'linear-gradient(135deg, #52c41a 0%, #73d13d 100%)',
+                  position: 'absolute',
+                  top: 20,
+                  right: 20
+                }} 
+              />
+            </Card>
+          </Badge.Ribbon>
+        </Col>
+
+        {/* Loan Due Card */}
+        <Col xs={24} sm={12} lg={6}>
+          <Badge.Ribbon 
+            text={formatCurrency(dashboardData?.due || 0)} 
+            color="orange"
+          >
+            <Card 
+              bordered={false} 
+              hoverable
+              styles={{
+                body: { padding: '24px', position: 'relative' }
+              }}
+            >
+              <Statistic
+                title={<Text strong style={{ fontSize: 14 }}>Loan Due</Text>}
+                value={dashboardData?.due || 0}
+                prefix="Ksh"
+                valueStyle={{ color: '#ff4d4f', fontSize: 26 }}
+                formatter={(value) => (value as number).toLocaleString()}
+              />
+              <Avatar 
+                size={48} 
+                icon={<RiseOutlined />} 
+                style={{ 
+                  background: 'linear-gradient(135deg, #ff4d4f 0%, #ff7875 100%)',
+                  position: 'absolute',
+                  top: 20,
+                  right: 20
+                }} 
+              />
+            </Card>
+          </Badge.Ribbon>
+        </Col>
+      </Row>
+
+      <Row gutter={[16, 16]}>
+        {/* Monthly Down Payment Performance Chart */}
+        <Col xs={24} xl={14}>
+          <Card 
+            bordered={false}
+            title={
+              <Title level={4} style={{ margin: 0 }}>
+                Monthly Down Payment Performance
+              </Title>
+            }
+          >
+            <ResponsiveContainer width="100%" height={300}>
+              <BarChart data={chartData}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                <XAxis dataKey="month" />
+                <YAxis />
+                <Tooltip 
+                  formatter={(value: any) => formatCurrency(value)}
+                  contentStyle={{ borderRadius: 8 }}
+                />
+                <Bar dataKey="amount" fill="#ac202d" radius={[8, 8, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          </Card>
+        </Col>
+
+        {/* Collections - Today Collections Metrics */}
+        <Col xs={24} xl={10}>
+          <Card 
+            bordered={false}
+            title={
+              <div>
+                <Title level={4} style={{ margin: 0 }}>
+                  Collections
+                </Title>
+                <Text type="secondary">Today collections metrics</Text>
+              </div>
+            }
+            styles={{ body: { textAlign: 'center' } }}
+          >
+            <Progress 
+              type="circle" 
+              percent={parseFloat(collectionPercentage.toFixed(2))}
+              size={200}
+              strokeColor="#ac202d"
+              format={(percent) => (
+                <div>
+                  <div style={{ fontSize: 36, fontWeight: 600, color: '#1D2939' }}>
+                    {percent}%
+                  </div>
+                  <div style={{ 
+                    marginTop: 8,
+                    padding: '4px 12px',
+                    background: '#f6ffed',
+                    color: '#52c41a',
+                    borderRadius: 20,
+                    fontSize: 12,
+                    fontWeight: 500
+                  }}>
+                    +{percent}%
+                  </div>
+                </div>
+              )}
+            />
+            <div style={{ marginTop: 24 }}>
+              <Text type="secondary" style={{ fontSize: 14 }}>
+                Collected {formatCurrency(dashboardData?.paid || 0)} today, of {formatCurrency(dashboardData?.due || 0)} work!
+              </Text>
+            </div>
+            <div style={{ 
+              marginTop: 24,
+              padding: '16px',
+              background: '#fafafa',
+              borderRadius: 8,
+              display: 'flex',
+              justifyContent: 'space-around'
+            }}>
+              <div>
+                <Text type="secondary" style={{ display: 'block', marginBottom: 8 }}>Total Due</Text>
+                <Text strong style={{ fontSize: 16 }}>{(dashboardData?.due || 0).toLocaleString()}</Text>
+              </div>
+              <div style={{ width: 1, background: '#d9d9d9' }} />
+              <div>
+                <Text type="secondary" style={{ display: 'block', marginBottom: 8 }}>Collected</Text>
+                <Text strong style={{ fontSize: 16 }}>{(dashboardData?.paid || 0).toLocaleString()}</Text>
+              </div>
+            </div>
+          </Card>
+        </Col>
+      </Row>
+
+      <Row gutter={[16, 16]} style={{ marginTop: 16 }}>
+        {/* Current Stock */}
+        <Col xs={24} xl={10}>
+          <Card 
+            bordered={false}
+            title={
+              <Title level={4} style={{ margin: 0 }}>
+                Current Stock
+              </Title>
+            }
+          >
+            <Table
+              columns={stockColumns}
+              dataSource={dashboardData?.stock || []}
+              rowKey={(record, index) => `stock-${index}`}
+              pagination={false}
+              size="small"
+              locale={{ emptyText: 'No stock data available' }}
+            />
+          </Card>
+        </Col>
+
+        {/* Recent Collection Sheets */}
+        <Col xs={24} xl={14}>
+          <Card 
+            bordered={false}
+            title={
+              <Title level={4} style={{ margin: 0 }}>
+                Recent Collection Sheets
+              </Title>
+            }
+          >
+            <Table
+              columns={sheetsColumns}
+              dataSource={dashboardData?.sheets || []}
+              rowKey="id"
+              pagination={false}
+              size="small"
+              scroll={{ x: 800 }}
+              locale={{ emptyText: 'No recent collection sheets available' }}
+            />
+          </Card>
+        </Col>
+      </Row>
     </div>
   );
 };
 
-export default ModernDashboard;
+export default Dashboard;
