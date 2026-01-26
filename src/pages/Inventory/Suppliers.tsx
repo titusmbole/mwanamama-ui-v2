@@ -1,8 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { Button, Table, Modal, Form, Input, message } from 'antd';
+import { Button, Table, Modal, Form, Input, message, Tag } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
-import { PlusOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons';
-import { Popconfirm } from 'antd';
+import { PlusOutlined, EditOutlined } from '@ant-design/icons';
 import PageHeader from '../../components/common/Layout/PageHeader';
 import PageCard from '../../components/common/PageCard/PageCard';
 import { APIS } from '../../services/APIS';
@@ -11,10 +10,11 @@ import http from '../../services/httpInterceptor';
 interface Supplier {
   id: number;
   name: string;
-  email?: string;
-  phone?: string;
-  address?: string;
-  contactPerson?: string;
+  contact: string;
+  contactPerson: string;
+  address: string;
+  createdAt?: string;
+  active?: boolean;
 }
 
 const Suppliers: React.FC = () => {
@@ -26,7 +26,6 @@ const Suppliers: React.FC = () => {
   const [createModalOpen, setCreateModalOpen] = useState(false);
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [selectedSupplier, setSelectedSupplier] = useState<Supplier | null>(null);
-  
   const [submitting, setSubmitting] = useState(false);
   
   const [createForm] = Form.useForm();
@@ -39,7 +38,7 @@ const Suppliers: React.FC = () => {
   const loadData = async (page = 1, pageSize = 10, search = '') => {
     try {
       setLoading(true);
-      const params: any = { page: page - 1, size: pageSize }; // Backend uses 0-indexed pages
+      const params: any = { page: page - 1, size: pageSize };
       if (search) params.search = search;
 
       const response = await http.get(APIS.LIST_SUPPLIERS, { params });
@@ -71,12 +70,12 @@ const Suppliers: React.FC = () => {
     setSubmitting(true);
     try {
       await http.post(APIS.CREATE_SUPPLIER, values);
-      message.success('Supplier created successfully');
+      message.success('Supplier created successfully!');
       setCreateModalOpen(false);
       createForm.resetFields();
       loadData(pagination.current, pagination.pageSize, searchText);
     } catch (error: any) {
-      message.error(error.response?.data?.message || 'Failed to create supplier');
+      message.error(error.response?.data?.message || 'Failed to create supplier.');
     } finally {
       setSubmitting(false);
     }
@@ -84,7 +83,12 @@ const Suppliers: React.FC = () => {
 
   const handleEdit = (supplier: Supplier) => {
     setSelectedSupplier(supplier);
-    editForm.setFieldsValue(supplier);
+    editForm.setFieldsValue({
+      name: supplier.name,
+      contact: supplier.contact,
+      contactPerson: supplier.contactPerson,
+      address: supplier.address,
+    });
     setEditModalOpen(true);
   };
 
@@ -94,24 +98,15 @@ const Suppliers: React.FC = () => {
     setSubmitting(true);
     try {
       await http.put(`${APIS.UPDATE_SUPPLIER}/${selectedSupplier.id}`, values);
-      message.success('Supplier updated successfully');
+      message.success('Supplier updated successfully!');
       setEditModalOpen(false);
       editForm.resetFields();
+      setSelectedSupplier(null);
       loadData(pagination.current, pagination.pageSize, searchText);
     } catch (error: any) {
-      message.error(error.response?.data?.message || 'Failed to update supplier');
+      message.error(error.response?.data?.message || 'Failed to update supplier.');
     } finally {
       setSubmitting(false);
-    }
-  };
-
-  const handleDelete = async (supplierId: number) => {
-    try {
-      await http.delete(`${APIS.DELETE_SUPPLIER}/${supplierId}`);
-      message.success('Supplier deleted successfully');
-      loadData(pagination.current, pagination.pageSize, searchText);
-    } catch (error: any) {
-      message.error(error.response?.data?.message || 'Failed to delete supplier');
     }
   };
 
@@ -122,59 +117,98 @@ const Suppliers: React.FC = () => {
       key: 'name',
     },
     {
-      title: 'Email',
-      dataIndex: 'email',
-      key: 'email',
-      render: (text) => text || 'N/A',
-    },
-    {
-      title: 'Phone',
-      dataIndex: 'phone',
-      key: 'phone',
-      render: (text) => text || 'N/A',
+      title: 'Contact',
+      dataIndex: 'contact',
+      key: 'contact',
     },
     {
       title: 'Contact Person',
       dataIndex: 'contactPerson',
       key: 'contactPerson',
-      render: (text) => text || 'N/A',
+    },
+    {
+      title: 'Address',
+      dataIndex: 'address',
+      key: 'address',
+    },
+    {
+      title: 'Date Created',
+      dataIndex: 'createdAt',
+      key: 'createdAt',
+      render: (text) => text ? new Date(text).toLocaleDateString() : 'N/A',
+    },
+    {
+      title: 'Is Active',
+      dataIndex: 'active',
+      key: 'active',
+      render: (active: boolean) => (
+        active ? (
+          <Tag color="green">Active</Tag>
+        ) : (
+          <Tag color="red">Inactive</Tag>
+        )
+      ),
     },
     {
       title: 'Actions',
       key: 'actions',
-      width: 120,
+      width: 100,
       render: (_, record) => (
-        <div style={{ display: 'flex', gap: 8 }}>
-          <Button type="link" icon={<EditOutlined />} onClick={() => handleEdit(record)} />
-          <Popconfirm
-            title="Delete supplier?"
-            onConfirm={() => handleDelete(record.id)}
-            okText="Yes"
-            cancelText="No"
-          >
-            <Button type="link" danger icon={<DeleteOutlined />} />
-          </Popconfirm>
-        </div>
+        <Button 
+          type="link" 
+          icon={<EditOutlined />} 
+          onClick={() => handleEdit(record)}
+        >
+          Edit
+        </Button>
       ),
     },
   ];
 
   const formItems = (
     <>
-      <Form.Item name="name" label="Supplier Name" rules={[{ required: true }]}>
-        <Input />
+      <Form.Item 
+        name="name" 
+        label="Supplier Name" 
+        rules={[
+          { required: true, message: 'Name is required' },
+          { min: 2, message: 'Name must be at least 2 characters' },
+          { max: 100, message: 'Name cannot exceed 100 characters' }
+        ]}
+      >
+        <Input placeholder="Enter supplier name" />
       </Form.Item>
-      <Form.Item name="email" label="Email" rules={[{ type: 'email' }]}>
-        <Input />
+      <Form.Item 
+        name="contact" 
+        label="Contact" 
+        rules={[
+          { required: true, message: 'Contact is required' },
+          { pattern: /^\d{10}$/, message: 'Contact must be a 10-digit number' }
+        ]}
+      >
+        <Input placeholder="Enter contact number" />
       </Form.Item>
-      <Form.Item name="phone" label="Phone">
-        <Input />
+      <Form.Item 
+        name="contactPerson" 
+        label="Contact Person"
+        rules={[
+          { required: true, message: 'Contact person is required' },
+          { min: 2, message: 'Contact person must be at least 2 characters' },
+          { max: 100, message: 'Contact person cannot exceed 100 characters' }
+        ]}
+      >
+        <Input placeholder="Enter contact person name" />
       </Form.Item>
-      <Form.Item name="contactPerson" label="Contact Person">
-        <Input />
-      </Form.Item>
-      <Form.Item name="address" label="Address">
-        <Input.TextArea rows={3} />
+      <Form.Item 
+        name="address" 
+        label="Address"
+        rules={[
+          { required: true, message: 'Address is required' },
+          { min: 5, message: 'Address must be at least 5 characters' },
+          { max: 200, message: 'Address cannot exceed 200 characters' }
+        ]}
+      >
+        <Input.TextArea rows={3} placeholder="Enter supplier address" />
       </Form.Item>
     </>
   );
@@ -215,11 +249,15 @@ const Suppliers: React.FC = () => {
 
       {/* Create Modal */}
       <Modal
-        title="Add Supplier"
+        title="Create Supplier"
         open={createModalOpen}
-        onCancel={() => { setCreateModalOpen(false); createForm.resetFields(); }}
+        onCancel={() => { 
+          setCreateModalOpen(false); 
+          createForm.resetFields(); 
+        }}
         onOk={() => createForm.submit()}
         confirmLoading={submitting}
+        okText={submitting ? "Creating..." : "Create Supplier"}
       >
         <Form form={createForm} layout="vertical" onFinish={handleCreate}>
           {formItems}
@@ -228,11 +266,16 @@ const Suppliers: React.FC = () => {
 
       {/* Edit Modal */}
       <Modal
-        title={`Edit: ${selectedSupplier?.name}`}
+        title={`Edit Supplier: ${selectedSupplier?.name}`}
         open={editModalOpen}
-        onCancel={() => { setEditModalOpen(false); editForm.resetFields(); }}
+        onCancel={() => { 
+          setEditModalOpen(false); 
+          editForm.resetFields();
+          setSelectedSupplier(null);
+        }}
         onOk={() => editForm.submit()}
         confirmLoading={submitting}
+        okText={submitting ? "Updating..." : "Update Supplier"}
       >
         <Form form={editForm} layout="vertical" onFinish={handleUpdate}>
           {formItems}

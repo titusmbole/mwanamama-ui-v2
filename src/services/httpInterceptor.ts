@@ -183,15 +183,16 @@ http.interceptors.response.use(
       case 403: // Forbidden - Insufficient permissions
         {
           const { description } = getErrorMessage(data);
+          console.log(data)
           showError(
             'Access Denied',
             description || 'You do not have permission to perform this action.'
           );
           
           // Navigate to unauthorized page
-          setTimeout(() => {
-            window.location.href = '/unauthorized';
-          }, 1500);
+          // setTimeout(() => {
+          //   window.location.href = '/unauthorized';
+          // }, 1500);
         }
         break;
 

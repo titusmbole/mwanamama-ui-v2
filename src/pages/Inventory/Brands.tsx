@@ -1,8 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { Button, Table, Modal, Form, Input, message } from 'antd';
+import { Button, Table, Modal, Form, Input, message, Tag } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
-import { PlusOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons';
-import { Popconfirm } from 'antd';
+import { PlusOutlined, EditOutlined } from '@ant-design/icons';
 import PageHeader from '../../components/common/Layout/PageHeader';
 import PageCard from '../../components/common/PageCard/PageCard';
 import { APIS } from '../../services/APIS';
@@ -11,7 +10,9 @@ import http from '../../services/httpInterceptor';
 interface Brand {
   id: number;
   brandName: string;
-  description?: string;
+  createdBy?: string;
+  createdAt?: string;
+  active?: boolean;
 }
 
 const Brands: React.FC = () => {
@@ -23,7 +24,6 @@ const Brands: React.FC = () => {
   const [createModalOpen, setCreateModalOpen] = useState(false);
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [selectedBrand, setSelectedBrand] = useState<Brand | null>(null);
-  
   const [submitting, setSubmitting] = useState(false);
   
   const [createForm] = Form.useForm();
@@ -68,12 +68,12 @@ const Brands: React.FC = () => {
     setSubmitting(true);
     try {
       await http.post(APIS.CREATE_BRANDS, values);
-      message.success('Brand created successfully');
+      message.success('Brand created successfully!');
       setCreateModalOpen(false);
       createForm.resetFields();
       loadData(pagination.current, pagination.pageSize, searchText);
     } catch (error: any) {
-      message.error(error.response?.data?.message || 'Failed to create brand');
+      message.error(error.response?.data?.message || 'Failed to create brand.');
     } finally {
       setSubmitting(false);
     }
@@ -81,7 +81,7 @@ const Brands: React.FC = () => {
 
   const handleEdit = (brand: Brand) => {
     setSelectedBrand(brand);
-    editForm.setFieldsValue(brand);
+    editForm.setFieldsValue({ brandName: brand.brandName });
     setEditModalOpen(true);
   };
 
@@ -91,24 +91,15 @@ const Brands: React.FC = () => {
     setSubmitting(true);
     try {
       await http.put(`${APIS.UPDATE_BRANDS}/${selectedBrand.id}`, values);
-      message.success('Brand updated successfully');
+      message.success('Brand updated successfully!');
       setEditModalOpen(false);
       editForm.resetFields();
+      setSelectedBrand(null);
       loadData(pagination.current, pagination.pageSize, searchText);
     } catch (error: any) {
-      message.error(error.response?.data?.message || 'Failed to update brand');
+      message.error(error.response?.data?.message || 'Failed to update brand.');
     } finally {
       setSubmitting(false);
-    }
-  };
-
-  const handleDelete = async (brandId: number) => {
-    try {
-      await http.delete(`${APIS.DELETE_BRANDS}/${brandId}`);
-      message.success('Brand deleted successfully');
-      loadData(pagination.current, pagination.pageSize, searchText);
-    } catch (error: any) {
-      message.error(error.response?.data?.message || 'Failed to delete brand');
     }
   };
 
@@ -119,27 +110,41 @@ const Brands: React.FC = () => {
       key: 'brandName',
     },
     {
-      title: 'Description',
-      dataIndex: 'description',
-      key: 'description',
+      title: 'Created By',
+      dataIndex: 'createdBy',
+      key: 'createdBy',
       render: (text) => text || 'N/A',
+    },
+    {
+      title: 'Date Created',
+      dataIndex: 'createdAt',
+      key: 'createdAt',
+      render: (text) => text ? new Date(text).toLocaleDateString() : 'N/A',
+    },
+    {
+      title: 'Is Active',
+      dataIndex: 'active',
+      key: 'active',
+      render: (active: boolean) => (
+        active ? (
+          <Tag color="green">Active</Tag>
+        ) : (
+          <Tag color="red">Inactive</Tag>
+        )
+      ),
     },
     {
       title: 'Actions',
       key: 'actions',
-      width: 120,
+      width: 100,
       render: (_, record) => (
-        <div style={{ display: 'flex', gap: 8 }}>
-          <Button type="link" icon={<EditOutlined />} onClick={() => handleEdit(record)} />
-          <Popconfirm
-            title="Delete brand?"
-            onConfirm={() => handleDelete(record.id)}
-            okText="Yes"
-            cancelText="No"
-          >
-            <Button type="link" danger icon={<DeleteOutlined />} />
-          </Popconfirm>
-        </div>
+        <Button 
+          type="link" 
+          icon={<EditOutlined />} 
+          onClick={() => handleEdit(record)}
+        >
+          Edit
+        </Button>
       ),
     },
   ];
@@ -180,36 +185,63 @@ const Brands: React.FC = () => {
 
       {/* Create Modal */}
       <Modal
-        title="Add Brand"
+        title="Create Brand"
         open={createModalOpen}
-        onCancel={() => { setCreateModalOpen(false); createForm.resetFields(); }}
+        onCancel={() => { 
+          setCreateModalOpen(false); 
+          createForm.resetFields(); 
+        }}
         onOk={() => createForm.submit()}
         confirmLoading={submitting}
+        okText={submitting ? "Creating..." : "Create Brand"}
       >
-        <Form form={createForm} layout="vertical" onFinish={handleCreate}>
-          <Form.Item name="brandName" label="Brand Name" rules={[{ required: true }]}>
-            <Input />
-          </Form.Item>
-          <Form.Item name="description" label="Description">
-            <Input.TextArea rows={3} />
+        <Form 
+          form={createForm} 
+          layout="vertical" 
+          onFinish={handleCreate}
+        >
+          <Form.Item 
+            name="brandName" 
+            label="Brand Name" 
+            rules={[
+              { required: true, message: 'Brand name is required' },
+              { min: 2, message: 'Brand name must be at least 2 characters' },
+              { max: 50, message: 'Brand name cannot exceed 50 characters' }
+            ]}
+          >
+            <Input placeholder="Enter brand name" />
           </Form.Item>
         </Form>
       </Modal>
 
       {/* Edit Modal */}
       <Modal
-        title={`Edit: ${selectedBrand?.brandName}`}
+        title={`Edit Brand: ${selectedBrand?.brandName}`}
         open={editModalOpen}
-        onCancel={() => { setEditModalOpen(false); editForm.resetFields(); }}
+        onCancel={() => { 
+          setEditModalOpen(false); 
+          editForm.resetFields();
+          setSelectedBrand(null);
+        }}
         onOk={() => editForm.submit()}
         confirmLoading={submitting}
+        okText={submitting ? "Updating..." : "Update Brand"}
       >
-        <Form form={editForm} layout="vertical" onFinish={handleUpdate}>
-          <Form.Item name="brandName" label="Brand Name" rules={[{ required: true }]}>
-            <Input />
-          </Form.Item>
-          <Form.Item name="description" label="Description">
-            <Input.TextArea rows={3} />
+        <Form 
+          form={editForm} 
+          layout="vertical" 
+          onFinish={handleUpdate}
+        >
+          <Form.Item 
+            name="brandName" 
+            label="Brand Name" 
+            rules={[
+              { required: true, message: 'Brand name is required' },
+              { min: 2, message: 'Brand name must be at least 2 characters' },
+              { max: 50, message: 'Brand name cannot exceed 50 characters' }
+            ]}
+          >
+            <Input placeholder="Enter brand name" />
           </Form.Item>
         </Form>
       </Modal>
