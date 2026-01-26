@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Menu, Layout as AntdLayout, Typography, Drawer } from 'antd';
+import { ArrowRightOutlined } from '@ant-design/icons';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { navItems, othersItems } from '../../../constants/navItems.tsx'; 
 import type { NavItem, SubItem } from '../../../types/types.ts'; 
@@ -20,13 +21,33 @@ const mapNavItemsToAntdMenu = (items: NavItem[]): React.ReactNode => {
             return (
                 <Menu.SubMenu key={item.name} icon={item.icon} title={item.name}>
                     {item.subItems.map((subItem: SubItem) => (
-                        <Menu.Item key={subItem.path}>
-                            {subItem.name}
-                            {subItem.pro && (
-                                <Text type="success" style={{ marginLeft: 8, fontSize: 10 }}>
-                                    PRO
-                                </Text>
-                            )}
+                        <Menu.Item 
+                            key={subItem.path}
+                            className="submenu-item"
+                        >
+                            <div style={{ 
+                                display: 'flex', 
+                                alignItems: 'center', 
+                                gap: '0px',
+                                width: '100%'
+                            }}>
+                                <ArrowRightOutlined 
+                                    style={{ 
+                                        fontSize: 12, 
+                                        opacity: 0.5,
+                                        transition: 'all 0.3s ease'
+                                    }} 
+                                    className="submenu-arrow"
+                                />
+                                <span>
+                                    {subItem.name}
+                                    {subItem.pro && (
+                                        <Text type="success" style={{ marginLeft: 8, fontSize: 10 }}>
+                                            PRO
+                                        </Text>
+                                    )}
+                                </span>
+                            </div>
                         </Menu.Item>
                     ))}
                 </Menu.SubMenu>
@@ -79,6 +100,18 @@ const Sidebar: React.FC<SidebarProps> = ({
 
     const siderContent = (
         <>
+            {/* Styles for hover animation */}
+            <style>{`
+                .submenu-item:hover .submenu-arrow {
+                    transform: translateX(4px);
+                    opacity: 1 !important;
+                    color: #ac202d;
+                }
+                .submenu-item {
+                    transition: all 0.3s ease;
+                }
+            `}</style>
+
             {/* Logo Area */}
             <div 
                 style={{ 

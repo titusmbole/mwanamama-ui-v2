@@ -13,8 +13,9 @@ import {
   UserSwitchOutlined,
   AppstoreOutlined,
   ShoppingCartOutlined,
-} from "@ant-design/icons";
-import { MessageCircle } from "lucide-react";
+  OrderedListOutlined,
+MessageOutlined} from "@ant-design/icons";
+import { ListChecks, MessageCircle } from "lucide-react";
 import { FaMotorcycle } from "react-icons/fa";
 
 export const navItems: NavItem[] = [
@@ -95,6 +96,17 @@ export const navItems: NavItem[] = [
     ],
   },
 
+  // ================= Stock =================
+  {
+    name: "Stock Adjustments",
+    icon: <OrderedListOutlined />,
+    subItems: [
+      { name: "List Stock Adjuistments", path: "/products", pro: false },
+      { name: "Stock Transfer", path: "/categories", pro: false },
+      { name: "Stock Adjustments", path: "/stocks", pro: false },
+    ],
+  },
+
   // ================= User Management =================
   {
     name: "User Management",
@@ -108,7 +120,7 @@ export const navItems: NavItem[] = [
 
   // ================= SMS =================
   {
-    icon: <MessageCircle />,
+    icon: <MessageOutlined />,
     name: "SMS",
     path: "/sms",
   },
