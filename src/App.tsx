@@ -47,6 +47,7 @@ const BranchPerformanceReport = lazy(() => import("./pages/Reports/BranchPerform
 const ProfitAndLossReport = lazy(() => import("./pages/Reports/ProfitAndLossReport"));
 const SalesPerformanceReport = lazy(() => import("./pages/Reports/SalesPerformanceReport"));
 const Settings = lazy(() => import("./pages/Settings/Settings"));
+const Backups = lazy(() => import("./pages/Settings/Backups"));
 
 // Lazy load Inventory Pages
 const ProductCatalog = lazy(() => import("./pages/Inventory/ProductCatalog"));
@@ -60,6 +61,12 @@ const Orders = lazy(() => import("./pages/Inventory/Orders"));
 // Lazy load Online Sales Pages
 const Sales = lazy(() => import("./pages/OnlineSales/Sales"));
 const Customers = lazy(() => import("./pages/OnlineSales/Customers"));
+
+// Lazy load Stock Management Pages
+const ListAdjustments = lazy(() => import("./pages/Stock/ListAdjustments"));
+const IssuesAndReturns = lazy(() => import("./pages/Stock/IssuesAndReturns"));
+const StockOrders = lazy(() => import("./pages/Stock/StockOrders"));
+const StockTransfer = lazy(() => import("./pages/Stock/StockTransfer"));
 
 const App: React.FC = () => {
   // Use NProgress for route changes
@@ -145,7 +152,11 @@ const App: React.FC = () => {
             <Route path="sales/sale" element={<Sales />} />
             <Route path="individual/customer" element={<Customers />} />
 
-           
+            {/* Stock Management */}
+            <Route path="stock/list-adjustments" element={<ListAdjustments />} />
+            <Route path="stock/issues-returns" element={<IssuesAndReturns />} />
+            <Route path="stock/orders" element={<StockOrders />} />
+            <Route path="stock/transfer" element={<StockTransfer />} />
 
             {/* User Management */}
             <Route path="users/all" element={<Users />} />
@@ -156,6 +167,7 @@ const App: React.FC = () => {
             <Route path="sms" element={<SMS />} />
             <Route path="calendar" element={<Calendar />} />
             <Route path="settings" element={<Settings />} />
+            <Route path="settings/backups" element={<Backups />} />
 
             {/* Reports */}
             <Route path="report/clients" element={<ClientsReport />} />

@@ -101,9 +101,10 @@ export const navItems: NavItem[] = [
     name: "Stock Adjustments",
     icon: <OrderedListOutlined />,
     subItems: [
-      { name: "List Stock Adjuistments", path: "/products", pro: false },
-      { name: "Stock Transfer", path: "/categories", pro: false },
-      { name: "Stock Adjustments", path: "/stocks", pro: false },
+      { name: "List Adjustments", path: "/stock/list-adjustments", pro: false },
+      { name: "Issues & Returns", path: "/stock/issues-returns", pro: false },
+      { name: "Stock Orders", path: "/stock/orders", pro: false },
+      { name: "Stock Transfer", path: "/stock/transfer", pro: false },
     ],
   },
 
@@ -152,6 +153,9 @@ export const othersItems: NavItem[] = [
   {
     icon: <SettingOutlined />,
     name: "Settings",
-    path: "/settings",
+    subItems: [
+      { name: "Account Settings", path: "/settings", pro: false },
+      { name: "Backups", path: "/settings/backups", pro: false },
+    ],
   },
 ];
