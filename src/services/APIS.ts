@@ -48,6 +48,7 @@ export const APIS = {
   UPDATE_CATEGORY: `${BASE_URL}/categories`,
   SEARCH_PRODUCT: `${BASE_URL}/products/search`,
   LOAD_PRODUCTS: `${BASE_URL}/products/list`,
+  LOAD_PRODUCTS_UNPAGINATED: `${BASE_URL}/products/unpaginated`,
   CREATE_PRODUCTS: `${BASE_URL}/products/create`,
   UPDATE_PRODUCTS: `${BASE_URL}/products/update`,
   DELETE_PRODUCTS: `${BASE_URL}/products/products`,
@@ -55,6 +56,15 @@ export const APIS = {
   // ================== STOCK ==================
   LOAD_STOCK: `${BASE_URL}/products/adjustments`,
   CREATE_STOCK: `${BASE_URL}/products/adjust/stock`,
+  CREATE_STOCK_ORDER: `${BASE_URL}/stock/orders`,
+  LIST_STOCK_ORDERS: `${BASE_URL}/stock/orders`,
+
+
+
+
+
+
+  
 
   // ================== USERS ==================
   LOAD_USERS_UNPAGINATED: `${BASE_URL}/users/unpaginated`,

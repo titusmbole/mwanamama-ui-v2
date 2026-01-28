@@ -2,6 +2,11 @@
 import React, { createContext, useContext, useEffect, useState, type ReactNode } from "react";
 import { jwtDecode } from 'jwt-decode';
 
+interface Branch {
+  id: number;
+  name: string;
+}
+
 // Define the type for User (decoded from JWT)
 interface User {
   sub: string;
@@ -15,10 +20,12 @@ interface User {
   designation: string;
   location: string;
   gender: string;
+  branch: Branch | null;
   role: string;
   iat: number;
   exp: number;
 }
+
 
 interface AuthContextType {
   user: User | null;

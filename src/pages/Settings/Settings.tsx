@@ -380,7 +380,7 @@ const Settings: React.FC = () => {
                             initialValues={{
                                 name: user?.name,
                                 email: user?.email,
-                                phone: user?.phone || '',
+                                phone: user?.phoneNumber || '',
                                 location: user?.location || '',
                                 role: user?.role
                             }}
@@ -810,7 +810,7 @@ const Settings: React.FC = () => {
                                     <Title level={5} style={{ margin: 0 }}>{user?.name || '--'}</Title>
                                     <Text type="secondary">{user?.email || '--'}</Text>
                                     <br />
-                                    <Text type="secondary">{user?.role || 'ADMIN'}</Text>
+                                    <Text type="secondary">{user?.role || '--'} | {user?.branch?.name || 'Head Office'}</Text>
                                 </div>
                             </div>
                         </Card>

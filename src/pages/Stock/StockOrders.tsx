@@ -1,17 +1,27 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { 
-    Typography, Card, Button, Tag, Row, Col, message, Table, Space, Form, Select, InputNumber, DatePicker, Descriptions, Modal
+    Typography, Button, Tag, message, Table, Form, Descriptions, Modal, Input, InputNumber
 } from 'antd';
 import { 
-    PlusOutlined, ShoppingCartOutlined, CheckCircleOutlined, CloseCircleOutlined, EyeOutlined
+    PlusOutlined, EyeOutlined
 } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import PageHeader from '../../components/common/Layout/PageHeader';
+import PageCard from '../../components/common/PageCard/PageCard';
+import DataTable from '../../components/common/DataTable/DataTable';
 import FormDrawer from '../../components/common/FormDrawer/FormDrawer';
 import dayjs from 'dayjs';
+import { http, APIS } from '../../services/api';
 
 const { Title, Text } = Typography;
-const { Option } = Select;
+
+interface Product {
+    id: number;
+    itemCode: string;
+    itemName: string;
+    unitPrice: number;
+    currentStock: number;
+}
 
 // ----------------------------------------------------
 // DATA STRUCTURES
@@ -29,223 +39,147 @@ interface OrderItem {
 interface StockOrder {
     id: number;
     orderNo: string;
-    supplier: string;
-    branch: string;
-    orderDate: string;
-    expectedDelivery: string;
+    orderNumber?: string;
+    supplier?: string;
+    branch?: string;
+    branchId?: number;
+    branchName?: string;
+    requestDate?: string;
+    orderDate?: string;
+    approvedDate?: string;
+    supplierOrderDate?: string;
+    supplierDeliveryDate?: string;
+    dispatchDate?: string;
+    receivedDate?: string;
+    expectedDelivery?: string;
     items: OrderItem[];
-    totalAmount: number;
-    status: 'pending' | 'confirmed' | 'delivered' | 'cancelled';
-    createdBy: string;
+    totalAmount?: number;
+    status: 'ORDER' | 'requested' | 'approved' | 'ordered-from-supplier' | 'supplier-delivered' | 'dispatched-to-branch' | 'received' | 'completed' | 'cancelled';
+    createdBy?: string;
+    approvedBy?: string;
+    rejectedItems?: { productId: number; quantity: number; reason: string; }[];
+    notes?: string;
 }
 
-// ----------------------------------------------------
-// DUMMY DATA
-// ----------------------------------------------------
+interface ApiOrderItem {
+    id: number;
+    productId: number;
+    productName: string;
+    quantity: number;
+}
 
-const dummyProducts = [
-    { id: 1, code: 'BF-400', name: 'Baby Formula - 400g', unitPrice: 25.00, currentStock: 150 },
-    { id: 2, code: 'DP-M', name: 'Diapers Size M', unitPrice: 15.00, currentStock: 200 },
-    { id: 3, code: 'BW-001', name: 'Baby Wipes', unitPrice: 8.50, currentStock: 180 },
-    { id: 4, code: 'BL-200', name: 'Baby Lotion 200ml', unitPrice: 12.00, currentStock: 95 },
-    { id: 5, code: 'BS-300', name: 'Baby Shampoo', unitPrice: 10.00, currentStock: 120 }
-];
-
-const dummySuppliers = ['ABC Suppliers Ltd', 'XYZ Distributors', 'Global Baby Products', 'Local Supplies Inc'];
-const dummyBranches = ['Main Branch', 'Branch 2', 'Branch 3', 'Branch 4'];
-
-const dummyOrders: StockOrder[] = [
-    {
-        id: 1,
-        orderNo: 'ORD-2026-001',
-        supplier: 'ABC Suppliers Ltd',
-        branch: 'Main Branch',
-        orderDate: '2026-01-20',
-        expectedDelivery: '2026-01-27',
-        items: [
-            { productId: 1, productName: 'Baby Formula - 400g', productCode: 'BF-400', quantity: 100, unitPrice: 25.00, totalPrice: 2500.00 },
-            { productId: 2, productName: 'Diapers Size M', productCode: 'DP-M', quantity: 150, unitPrice: 15.00, totalPrice: 2250.00 }
-        ],
-        totalAmount: 4750.00,
-        status: 'confirmed',
-        createdBy: 'John Doe'
-    },
-    {
-        id: 2,
-        orderNo: 'ORD-2026-002',
-        supplier: 'XYZ Distributors',
-        branch: 'Branch 2',
-        orderDate: '2026-01-22',
-        expectedDelivery: '2026-01-29',
-        items: [
-            { productId: 3, productName: 'Baby Wipes', productCode: 'BW-001', quantity: 200, unitPrice: 8.50, totalPrice: 1700.00 }
-        ],
-        totalAmount: 1700.00,
-        status: 'pending',
-        createdBy: 'Jane Smith'
-    },
-    {
-        id: 3,
-        orderNo: 'ORD-2026-003',
-        supplier: 'Global Baby Products',
-        branch: 'Main Branch',
-        orderDate: '2026-01-18',
-        expectedDelivery: '2026-01-25',
-        items: [
-            { productId: 4, productName: 'Baby Lotion 200ml', productCode: 'BL-200', quantity: 80, unitPrice: 12.00, totalPrice: 960.00 },
-            { productId: 5, productName: 'Baby Shampoo', productCode: 'BS-300', quantity: 100, unitPrice: 10.00, totalPrice: 1000.00 }
-        ],
-        totalAmount: 1960.00,
-        status: 'delivered',
-        createdBy: 'Bob Wilson'
-    },
-    {
-        id: 4,
-        orderNo: 'ORD-2026-004',
-        supplier: 'Local Supplies Inc',
-        branch: 'Branch 3',
-        orderDate: '2026-01-24',
-        expectedDelivery: '2026-01-31',
-        items: [
-            { productId: 1, productName: 'Baby Formula - 400g', productCode: 'BF-400', quantity: 50, unitPrice: 25.00, totalPrice: 1250.00 }
-        ],
-        totalAmount: 1250.00,
-        status: 'pending',
-        createdBy: 'Alice Johnson'
-    }
-];
+interface ApiStockOrder {
+    id: number;
+    orderNumber: string;
+    notes: string;
+    status: string;
+    orderDate: string;
+    branchId: number;
+    branchName: string;
+    items: ApiOrderItem[];
+}
 
 // ----------------------------------------------------
 // MAIN COMPONENT
 // ----------------------------------------------------
 
 const StockOrders: React.FC = () => {
-    const [orders, setOrders] = useState<StockOrder[]>(dummyOrders);
     const [isModalVisible, setIsModalVisible] = useState(false);
     const [isViewModalVisible, setIsViewModalVisible] = useState(false);
     const [selectedOrder, setSelectedOrder] = useState<StockOrder | null>(null);
     const [orderItems, setOrderItems] = useState<OrderItem[]>([]);
+    const [refreshKey, setRefreshKey] = useState(0);
+    const [searchTerm, setSearchTerm] = useState('');
+    const [searchedProducts, setSearchedProducts] = useState<Product[]>([]);
+    const [showDropdown, setShowDropdown] = useState(false);
+    const [searchLoading, setSearchLoading] = useState(false);
     const [form] = Form.useForm();
+    
+    const searchInputRef = useRef<any>(null);
+    const dropdownRef = useRef<HTMLDivElement>(null);
+
+
+
+    // Search products using API
+    const handleProductSearch = async (query: string) => {
+        setSearchTerm(query);
+
+        if (query.length < 2) {
+            setSearchedProducts([]);
+            setShowDropdown(false);
+            return;
+        }
+
+        setSearchLoading(true);
+        try {
+            const response = await http.get(`${APIS.SEARCH_PRODUCT}?q=${encodeURIComponent(query)}`);
+            setSearchedProducts(response.data || []);
+            setShowDropdown(true);
+        } catch (error: any) {
+            message.error(error?.response?.data?.message || 'Failed to search products');
+            setSearchedProducts([]);
+            setShowDropdown(false);
+        } finally {
+            setSearchLoading(false);
+        }
+    };
 
     // ----------------------------------------------------
     // TABLE COLUMNS
     // ----------------------------------------------------
 
-    const columns: ColumnsType<StockOrder> = [
+    const columns: ColumnsType<ApiStockOrder> = [
         {
             title: 'Order No',
-            dataIndex: 'orderNo',
-            key: 'orderNo',
-            fixed: 'left',
-            width: 150,
-        },
-        {
-            title: 'Supplier',
-            dataIndex: 'supplier',
-            key: 'supplier',
-            width: 200,
+            dataIndex: 'orderNumber',
+            key: 'orderNumber',
+            sorter: true,
         },
         {
             title: 'Branch',
-            dataIndex: 'branch',
-            key: 'branch',
-            width: 150,
+            dataIndex: 'branchName',
+            key: 'branchName',
+            sorter: true,
         },
         {
             title: 'Order Date',
             dataIndex: 'orderDate',
             key: 'orderDate',
-            width: 120,
-            render: (date) => dayjs(date).format('MMM DD, YYYY')
-        },
-        {
-            title: 'Expected Delivery',
-            dataIndex: 'expectedDelivery',
-            key: 'expectedDelivery',
-            width: 150,
-            render: (date) => dayjs(date).format('MMM DD, YYYY')
+            sorter: true,
+            render: (date) => date ? dayjs(date).format('MMM DD, YYYY') : '-'
         },
         {
             title: 'Items',
             dataIndex: 'items',
             key: 'items',
-            width: 100,
-            render: (items: OrderItem[]) => <Tag color="blue">{items.length} items</Tag>
-        },
-        {
-            title: 'Total Amount',
-            dataIndex: 'totalAmount',
-            key: 'totalAmount',
-            width: 150,
-            render: (amount) => <Text strong className="text-green-600">${amount.toFixed(2)}</Text>
+            render: (items: ApiOrderItem[]) => <Tag color="blue">{items?.length || 0} items</Tag>
         },
         {
             title: 'Status',
             dataIndex: 'status',
             key: 'status',
-            width: 120,
+            sorter: true,
             render: (status: string) => {
-                const colors = {
-                    pending: 'orange',
-                    confirmed: 'blue',
-                    delivered: 'green',
-                    cancelled: 'red'
+                const statusConfig: Record<string, { color: string; label: string }> = {
+                    'ORDER': { color: 'orange', label: 'Order' },
+                    'PENDING': { color: 'orange', label: 'Pending' },
+                    'APPROVED': { color: 'blue', label: 'Approved' },
+                    'COMPLETED': { color: 'green', label: 'Completed' },
+                    'CANCELLED': { color: 'red', label: 'Cancelled' }
                 };
-                return <Tag color={colors[status as keyof typeof colors]}>{status.toUpperCase()}</Tag>;
+                const config = statusConfig[status] || { color: 'default', label: status };
+                return <Tag color={config.color}>{config.label}</Tag>;
             }
-        },
-        {
-            title: 'Created By',
-            dataIndex: 'createdBy',
-            key: 'createdBy',
-            width: 150,
         },
         {
             title: 'Actions',
             key: 'actions',
-            fixed: 'right',
-            width: 250,
-            render: (_, record) => (
-                <Space size="small">
-                    <Button 
-                        type="link" 
-                        size="small" 
-                        icon={<EyeOutlined />}
-                        onClick={() => handleViewOrder(record)}
-                    >
-                        View
-                    </Button>
-                    {record.status === 'pending' && (
-                        <Button 
-                            type="link" 
-                            size="small" 
-                            icon={<CheckCircleOutlined />}
-                            onClick={() => handleConfirm(record.id)}
-                        >
-                            Confirm
-                        </Button>
-                    )}
-                    {record.status === 'confirmed' && (
-                        <Button 
-                            type="link" 
-                            size="small" 
-                            icon={<CheckCircleOutlined />}
-                            onClick={() => handleDeliver(record.id)}
-                        >
-                            Mark Delivered
-                        </Button>
-                    )}
-                    <Button 
-                        type="link" 
-                        danger 
-                        size="small" 
-                        icon={<CloseCircleOutlined />}
-                        onClick={() => handleCancel(record.id)}
-                        disabled={record.status === 'delivered' || record.status === 'cancelled'}
-                    >
-                        Cancel
-                    </Button>
-                </Space>
+            render: (_, record: ApiStockOrder) => (
+                <Button 
+                    type="link" 
+                    icon={<EyeOutlined />}
+                    onClick={() => handleViewOrder(record)}
+                />
             )
         }
     ];
@@ -266,18 +200,26 @@ const StockOrders: React.FC = () => {
             title: 'Quantity',
             dataIndex: 'quantity',
             key: 'quantity',
+            render: (quantity, record) => (
+                <InputNumber
+                    min={1}
+                    value={quantity}
+                    onChange={(value) => handleQuantityChange(record.productId, value || 1)}
+                    style={{ width: 100 }}
+                />
+            )
         },
         {
             title: 'Unit Price',
             dataIndex: 'unitPrice',
             key: 'unitPrice',
-            render: (price) => `$${price.toFixed(2)}`
+            render: (price) => price ? `$${price.toFixed(2)}` : '-'
         },
         {
             title: 'Total',
             dataIndex: 'totalPrice',
             key: 'totalPrice',
-            render: (price) => <Text strong>${price.toFixed(2)}</Text>
+            render: (price) => price ? <Text strong>${price.toFixed(2)}</Text> : <Text>-</Text>
         },
         {
             title: 'Action',
@@ -298,6 +240,20 @@ const StockOrders: React.FC = () => {
         }
     ];
 
+    // Columns for viewing order items (without edit/price info)
+    const viewItemColumns: ColumnsType<ApiOrderItem> = [
+        {
+            title: 'Product',
+            dataIndex: 'productName',
+            key: 'productName',
+        },
+        {
+            title: 'Quantity',
+            dataIndex: 'quantity',
+            key: 'quantity',
+        }
+    ];
+
     // ----------------------------------------------------
     // HANDLERS
     // ----------------------------------------------------
@@ -305,58 +261,51 @@ const StockOrders: React.FC = () => {
     const handleAddNew = () => {
         form.resetFields();
         setOrderItems([]);
+        setSearchTerm('');
+        setSearchedProducts([]);
+        setShowDropdown(false);
         setIsModalVisible(true);
     };
 
-    const handleViewOrder = (order: StockOrder) => {
-        setSelectedOrder(order);
+    const handleViewOrder = (order: ApiStockOrder) => {
+        setSelectedOrder(order as any);
         setIsViewModalVisible(true);
     };
 
-    const handleConfirm = (id: number) => {
-        setOrders(orders.map(order => 
-            order.id === id ? { ...order, status: 'confirmed' as const } : order
-        ));
-        message.success('Order confirmed successfully');
+
+
+    const handleSelectProduct = (product: Product) => {
+        const existingItem = orderItems.find((item) => item.productId === product.id);
+        if (existingItem) {
+            message.warning(`${product.itemName} is already added.`);
+            return;
+        }
+
+        const newItem: OrderItem = {
+            productId: product.id,
+            productName: product.itemName,
+            productCode: product.itemCode,
+            quantity: 1,
+            unitPrice: product.unitPrice,
+            totalPrice: product.unitPrice * 1
+        };
+
+        setOrderItems(prev => [...prev, newItem]);
+        setSearchTerm('');
+        setSearchedProducts([]);
+        setShowDropdown(false);
+
+        if (searchInputRef.current) {
+            searchInputRef.current.focus();
+        }
     };
 
-    const handleDeliver = (id: number) => {
-        setOrders(orders.map(order => 
-            order.id === id ? { ...order, status: 'delivered' as const } : order
-        ));
-        message.success('Order marked as delivered');
-    };
-
-    const handleCancel = (id: number) => {
-        setOrders(orders.map(order => 
-            order.id === id ? { ...order, status: 'cancelled' as const } : order
-        ));
-        message.warning('Order cancelled');
-    };
-
-    const handleAddProduct = () => {
-        form.validateFields(['productId', 'quantity']).then((values) => {
-            const product = dummyProducts.find(p => p.id === values.productId);
-            if (!product) return;
-
-            const existingIndex = orderItems.findIndex(item => item.productId === values.productId);
-            if (existingIndex >= 0) {
-                message.warning('Product already added. Update quantity in the table.');
-                return;
-            }
-
-            const newItem: OrderItem = {
-                productId: product.id,
-                productName: product.name,
-                productCode: product.code,
-                quantity: values.quantity,
-                unitPrice: product.unitPrice,
-                totalPrice: product.unitPrice * values.quantity
-            };
-
-            setOrderItems([...orderItems, newItem]);
-            form.setFieldsValue({ productId: undefined, quantity: 1 });
-        });
+    const handleQuantityChange = (productId: number, quantity: number) => {
+        setOrderItems(prev =>
+            prev.map(item =>
+                item.productId === productId ? { ...item, quantity: Math.max(1, quantity), totalPrice: item.unitPrice * Math.max(1, quantity) } : item
+            )
+        );
     };
 
     const handleFormSubmit = async (values: any) => {
@@ -366,27 +315,27 @@ const StockOrders: React.FC = () => {
         }
 
         try {
-            const totalAmount = orderItems.reduce((sum, item) => sum + item.totalPrice, 0);
-            const newOrder: StockOrder = {
-                id: orders.length + 1,
-                orderNo: `ORD-2026-${String(orders.length + 1).padStart(3, '0')}`,
-                supplier: values.supplier,
-                branch: values.branch,
-                orderDate: values.orderDate.format('YYYY-MM-DD'),
-                expectedDelivery: values.expectedDelivery.format('YYYY-MM-DD'),
-                items: orderItems,
-                totalAmount,
-                status: 'pending',
-                createdBy: 'Current User'
+            // Prepare API payload
+            const payload = {
+                notes: values.notes || '',
+                items: orderItems.map(item => ({
+                    productId: item.productId,
+                    quantity: item.quantity
+                }))
             };
 
-            setOrders([newOrder, ...orders]);
-            message.success('Order created successfully');
+            // Call the API
+            await http.post(APIS.CREATE_STOCK_ORDER, payload);
+            
+            // Refresh the table
+            setRefreshKey(prev => prev + 1);
+            
             setIsModalVisible(false);
             form.resetFields();
             setOrderItems([]);
-        } catch (error) {
-            message.error('Failed to create order');
+        } catch (error: any) {
+            message.error(error?.response?.data?.message || 'Failed to create order');
+            console.error('Error creating stock order:', error);
         }
     };
 
@@ -396,7 +345,7 @@ const StockOrders: React.FC = () => {
 
     return (
         <>
-            <div className="p-6">
+            <div>
                 <PageHeader 
                     title="Stock Orders" 
                     breadcrumbs={[
@@ -405,42 +354,31 @@ const StockOrders: React.FC = () => {
                     ]}
                 />
 
-                <Card className="mt-4">
-                    <Row justify="space-between" align="middle" className="mb-4">
-                        <Col>
-                            <Title level={4} className="flex items-center m-0">
-                                <ShoppingCartOutlined className="mr-2 text-blue-500" /> 
-                                Purchase Orders
-                            </Title>
-                        </Col>
-                        <Col>
-                            <Button 
-                                type="primary" 
-                                icon={<PlusOutlined />}
-                                onClick={handleAddNew}
-                            >
-                                New Order
-                            </Button>
-                        </Col>
-                    </Row>
-
-                    <Table
+                <PageCard
+                    extra={
+                        <Button 
+                            type="primary" 
+                            icon={<PlusOutlined />}
+                            onClick={handleAddNew}
+                        >
+                            New Request
+                        </Button>
+                    }
+                >
+                    <DataTable
+                        key={refreshKey}
+                        apiUrl={APIS.LIST_STOCK_ORDERS}
                         columns={columns}
-                        dataSource={orders}
-                        rowKey="id"
-                        scroll={{ x: 1500 }}
-                        pagination={{
-                            pageSize: 10,
-                            showTotal: (total) => `Total ${total} orders`
-                        }}
+                        searchPlaceholder="Search orders..."
+                        scroll={{ x: 1200 }}
                     />
-                </Card>
+                </PageCard>
             </div>
 
             {/* Create Order Drawer */}
             <FormDrawer
                 open={isModalVisible}
-                title="New Stock Order"
+                title="New Stock Request to Head Office"
                 onClose={() => {
                     setIsModalVisible(false);
                     form.resetFields();
@@ -450,111 +388,72 @@ const StockOrders: React.FC = () => {
                 form={form}
                 width={900}
             >
-                <Form
-                    form={form}
-                    layout="vertical"
-                    initialValues={{
-                        orderDate: dayjs(),
-                        expectedDelivery: dayjs().add(7, 'days'),
-                        quantity: 1
-                    }}
+                <Form.Item
+                    name="notes"
+                    label="Request Notes"
                 >
-                    <Row gutter={16}>
-                        <Col span={12}>
-                            <Form.Item
-                                name="supplier"
-                                label="Supplier"
-                                rules={[{ required: true, message: 'Please select a supplier' }]}
-                            >
-                                <Select placeholder="Select supplier">
-                                    {dummySuppliers.map(supplier => (
-                                        <Option key={supplier} value={supplier}>{supplier}</Option>
-                                    ))}
-                                </Select>
-                            </Form.Item>
-                        </Col>
-                        <Col span={12}>
-                            <Form.Item
-                                name="branch"
-                                label="Branch"
-                                rules={[{ required: true, message: 'Please select a branch' }]}
-                            >
-                                <Select placeholder="Select branch">
-                                    {dummyBranches.map(branch => (
-                                        <Option key={branch} value={branch}>{branch}</Option>
-                                    ))}
-                                </Select>
-                            </Form.Item>
-                        </Col>
-                    </Row>
+                    <Input.TextArea 
+                        rows={3}
+                        placeholder="e.g., Urgent stock needed" 
+                    />
+                </Form.Item>
 
-                    <Row gutter={16}>
-                        <Col span={12}>
-                            <Form.Item
-                                name="orderDate"
-                                label="Order Date"
-                                rules={[{ required: true, message: 'Please select order date' }]}
-                            >
-                                <DatePicker style={{ width: '100%' }} />
-                            </Form.Item>
-                        </Col>
-                        <Col span={12}>
-                            <Form.Item
-                                name="expectedDelivery"
-                                label="Expected Delivery"
-                                rules={[{ required: true, message: 'Please select expected delivery date' }]}
-                            >
-                                <DatePicker style={{ width: '100%' }} />
-                            </Form.Item>
-                        </Col>
-                    </Row>
+                <div className="border-t pt-4 mt-4">
+                    <Title level={5}>Search & Add Products</Title>
+                    <div className="relative mb-4" ref={dropdownRef}>
+                            <Input
+                                ref={searchInputRef}
+                                size="large"
+                                placeholder="Search for products by name..."
+                                prefix={<PlusOutlined />}
+                                suffix={searchLoading ? <div className="animate-spin rounded-full h-5 w-5 border-2 border-primary border-t-transparent"></div> : null}
+                                value={searchTerm}
+                                onChange={(e) => handleProductSearch(e.target.value)}
+                                allowClear
+                                onFocus={() => {
+                                    if (searchedProducts.length > 0) {
+                                        setShowDropdown(true);
+                                    }
+                                }}
+                                onClear={() => {
+                                    setSearchTerm('');
+                                    setSearchedProducts([]);
+                                    setShowDropdown(false);
+                                }}
+                            />
 
-                    <div className="border-t pt-4 mt-4">
-                        <Title level={5}>Add Products</Title>
-                        <Row gutter={16} align="bottom">
-                            <Col span={12}>
-                                <Form.Item
-                                    name="productId"
-                                    label="Product"
-                                >
-                                    <Select 
-                                        placeholder="Select product"
-                                        showSearch
-                                        optionFilterProp="children"
-                                    >
-                                        {dummyProducts.map(product => (
-                                            <Option key={product.id} value={product.id}>
-                                                {product.name} ({product.code}) - ${product.unitPrice}
-                                            </Option>
-                                        ))}
-                                    </Select>
-                                </Form.Item>
-                            </Col>
-                            <Col span={8}>
-                                <Form.Item
-                                    name="quantity"
-                                    label="Quantity"
-                                >
-                                    <InputNumber 
-                                        min={1} 
-                                        placeholder="Qty"
-                                        style={{ width: '100%' }}
-                                    />
-                                </Form.Item>
-                            </Col>
-                            <Col span={4}>
-                                <Form.Item label=" ">
-                                    <Button 
-                                        type="dashed" 
-                                        icon={<PlusOutlined />}
-                                        onClick={handleAddProduct}
-                                        block
-                                    >
-                                        Add
-                                    </Button>
-                                </Form.Item>
-                            </Col>
-                        </Row>
+                            {/* Dropdown with Search Results */}
+                            {showDropdown && searchedProducts.length > 0 && (
+                                <div className="absolute z-10 w-full mt-1 bg-white rounded-lg border border-gray-200 shadow-lg max-h-64 overflow-y-auto">
+                                    {searchedProducts.map((product, index) => (
+                                        <button
+                                            key={product.id}
+                                            type="button"
+                                            onClick={() => handleSelectProduct(product)}
+                                            className={`w-full p-4 text-left hover:bg-blue-50 transition-colors flex items-center justify-between ${
+                                                index !== searchedProducts.length - 1 ? 'border-b border-gray-100' : ''
+                                            }`}
+                                        >
+                                            <div className="flex-1">
+                                                <div className="font-medium text-gray-900">{product.itemName}</div>
+                                                <div className="text-sm text-gray-500 mt-1">
+                                                    Code: {product.itemCode} • Price: ${product.unitPrice} • Stock: {product.currentStock}
+                                                </div>
+                                            </div>
+                                        </button>
+                                    ))}
+                                </div>
+                            )}
+
+                            {/* No results message */}
+                            {showDropdown && searchTerm.length >= 2 && searchedProducts.length === 0 && !searchLoading && (
+                                <div className="absolute z-10 w-full mt-1 bg-white rounded-lg border border-gray-200 shadow-lg p-4">
+                                    <div className="text-center text-gray-500">
+                                        <p>No products found for "{searchTerm}"</p>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
 
                         {orderItems.length > 0 && (
                             <div className="mt-4">
@@ -583,10 +482,9 @@ const StockOrders: React.FC = () => {
                             </div>
                         )}
                     </div>
-                </Form>
             </FormDrawer>
 
-            
+            {/* View Order Modal */}
             <Modal
                 open={isViewModalVisible}
                 title="Order Details"
@@ -600,37 +498,37 @@ const StockOrders: React.FC = () => {
             >
                 {selectedOrder && (
                     <div>
-                        <Descriptions bordered column={2}>
-                            <Descriptions.Item label="Order No">{selectedOrder.orderNo}</Descriptions.Item>
+                        <Descriptions bordered column={2} size="small">
+                            <Descriptions.Item label="Order No">{selectedOrder.orderNumber || selectedOrder.orderNo}</Descriptions.Item>
                             <Descriptions.Item label="Status">
                                 <Tag color={
-                                    selectedOrder.status === 'pending' ? 'orange' :
-                                    selectedOrder.status === 'confirmed' ? 'blue' :
-                                    selectedOrder.status === 'delivered' ? 'green' : 'red'
+                                    selectedOrder.status === 'requested' ? 'orange' :
+                                    selectedOrder.status === 'approved' ? 'blue' :
+                                    selectedOrder.status === 'ordered-from-supplier' ? 'cyan' :
+                                    selectedOrder.status === 'supplier-delivered' ? 'purple' :
+                                    selectedOrder.status === 'dispatched-to-branch' ? 'geekblue' :
+                                    selectedOrder.status === 'received' || selectedOrder.status === 'completed' ? 'green' : 'red'
                                 }>
-                                    {selectedOrder.status.toUpperCase()}
+                                    {selectedOrder.status.replace(/-/g, ' ').toUpperCase()}
                                 </Tag>
                             </Descriptions.Item>
-                            <Descriptions.Item label="Supplier">{selectedOrder.supplier}</Descriptions.Item>
-                            <Descriptions.Item label="Branch">{selectedOrder.branch}</Descriptions.Item>
+                            <Descriptions.Item label="Branch">{selectedOrder.branchName || selectedOrder.branch}</Descriptions.Item>
                             <Descriptions.Item label="Order Date">
-                                {dayjs(selectedOrder.orderDate).format('MMM DD, YYYY')}
+                                {dayjs(selectedOrder.orderDate || selectedOrder.requestDate).format('MMM DD, YYYY')}
                             </Descriptions.Item>
-                            <Descriptions.Item label="Expected Delivery">
-                                {dayjs(selectedOrder.expectedDelivery).format('MMM DD, YYYY')}
-                            </Descriptions.Item>
-                            <Descriptions.Item label="Created By">{selectedOrder.createdBy}</Descriptions.Item>
-                            <Descriptions.Item label="Total Amount">
-                                <Text strong className="text-green-600">${selectedOrder.totalAmount.toFixed(2)}</Text>
-                            </Descriptions.Item>
+                            {selectedOrder.notes && (
+                                <Descriptions.Item label="Notes" span={2}>
+                                    {selectedOrder.notes}
+                                </Descriptions.Item>
+                            )}
                         </Descriptions>
 
                         <div className="mt-4">
                             <Title level={5}>Order Items</Title>
                             <Table
-                                columns={itemColumns.filter(col => col.key !== 'action')}
+                                columns={viewItemColumns}
                                 dataSource={selectedOrder.items}
-                                rowKey="productId"
+                                rowKey="id"
                                 pagination={false}
                                 size="small"
                             />
